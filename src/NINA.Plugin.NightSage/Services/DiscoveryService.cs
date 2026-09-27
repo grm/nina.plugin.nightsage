@@ -99,31 +99,31 @@ Prefer unfinished existing Target Scheduler targets when they are a strong fit, 
 
         var filters = setup.Filters.Count == 0 ? "(none; color camera/no wheel may be in use)" : string.Join(", ", setup.Filters);
 
-        return $"""
-Current UTC date: {DateTime.UtcNow:yyyy-MM-dd}
-Discovery horizon: next {days} days
-Minimum useful target altitude: {minimumAltitude:0} deg
+        return $$"""
+Current UTC date: {{DateTime.UtcNow:yyyy-MM-dd}}
+Discovery horizon: next {{days}} days
+Minimum useful target altitude: {{minimumAltitude:0}} deg
 
 Site:
-- latitude {setup.LatitudeDeg.ToString("0.####", CultureInfo.InvariantCulture)} deg
-- longitude {setup.LongitudeDeg.ToString("0.####", CultureInfo.InvariantCulture)} deg
-- elevation {setup.ElevationM:0} m
+- latitude {{setup.LatitudeDeg.ToString("0.####", CultureInfo.InvariantCulture)}} deg
+- longitude {{setup.LongitudeDeg.ToString("0.####", CultureInfo.InvariantCulture)}} deg
+- elevation {{setup.ElevationM:0}} m
 
 Active setup:
-- telescope {setup.TelescopeName}
-- focal length {setup.FocalLengthMm:0} mm, f/{setup.FocalRatio:0.0}
-- camera {setup.CameraName}
-- field {setup.FieldWidthDeg:0.###} x {setup.FieldHeightDeg:0.###} deg
-- image scale {setup.ImageScaleArcsecPerPixel:0.###} arcsec/px
-- exact configured filters: {filters}
+- telescope {{setup.TelescopeName}}
+- focal length {{setup.FocalLengthMm:0}} mm, f/{{setup.FocalRatio:0.0}}
+- camera {{setup.CameraName}}
+- field {{setup.FieldWidthDeg:0.###}} x {{setup.FieldHeightDeg:0.###}} deg
+- image scale {{setup.ImageScaleArcsecPerPixel:0.###}} arcsec/px
+- exact configured filters: {{filters}}
 
 Current Target Scheduler targets:
-{existing}
+{{existing}}
 
 Return exactly:
-{{
+{
   "candidates": [
-    {{
+    {
       "category": "Emission nebula",
       "name": "catalog name",
       "targetType": "short type",
@@ -131,9 +131,9 @@ Return exactly:
       "angularHeightArcmin": number,
       "reason": "why this setup and this week suit it",
       "modelScore": number from 0 to 100
-    }}
+    }
   ]
-}}
+}
 
 Return exactly one object in candidates for each category:
 1. Emission nebula / HII region
