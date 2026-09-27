@@ -1,0 +1,75 @@
+name: build-test-release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore NINA.Plugin.NightSage.sln
+
+      - name: Build
+        run: dotnet build NINA.Plugin.NightSage.sln -c Release -p:Platform=x64 --no-restore
+
+      - name: Test
+        run: dotnet test tests/NINA.Plugin.NightSage.Tests/NINA.Plugin.NightSage.Tests.csproj -c Release -p:Platform=x64 --no-build
+
+      - name: Package
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $buildDir = "src/NINA.Plugin.NightSage/bin/Release/net8.0-windows7.0"
+          $stage = "release/NightSage"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Get-ChildItem -Path $buildDir -Recurse -File |
+            Where-Object { $_.Extension -ne ".pdb" -and $_.Name -notlike "*.deps.json" } |
+            ForEach-Object {
+              $rel = $_.FullName.Substring((Resolve-Path $buildDir).Path.Length + 1)
+              $dest = Join-Path $stage $rel
+              $destDir = Split-Path $dest -Parent
+              if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+              Copy-Item $_.FullName $dest
+            }
+          Copy-Item README.md $stage
+          Copy-Item CHANGELOG.md $stage
+          Compress-Archive -Path "$stage/*" -DestinationPath "release/NightSage-0.1.0-alpha.1.zip" -Force
+
+      - name: Upload build artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NightSage-0.1.0-alpha.1
+          path: release/NightSage-0.1.0-alpha.1.zip
+          retention-days: 30
+
+      - name: Publish prerelease
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v0.1.0-alpha.1"
+          gh release delete $tag --yes --cleanup-tag 2>$null
+          if ($LASTEXITCODE -ne 0) { Write-Host "No existing alpha release to replace." }
+          git tag -f $tag
+          git push origin $tag --force
+          gh release create $tag "release/NightSage-0.1.0-alpha.1.zip" `
+            --title "NightSage 0.1.0-alpha.1" `
+            --prerelease `
+            --notes-file CHANGELOG.md
