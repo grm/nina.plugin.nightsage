@@ -8,7 +8,7 @@
 
     <DataTemplate x:Key="NightSage_Options">
         <Grid Margin="8">
-            <TabControl>
+            <TabControl SelectedIndex="{Binding Workspace.SelectedWorkspaceTabIndex, Mode=TwoWay}">
                 <TabItem Header="Target &amp; Plan">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <ContentControl Margin="6"
