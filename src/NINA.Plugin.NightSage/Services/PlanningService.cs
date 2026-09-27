@@ -44,35 +44,35 @@ Moon constraints should be stricter for broadband and OIII than for Ha/SII when 
 
     private static string BuildPlanPrompt(ResolvedTarget target, SetupContext setup, string preferences) {
         var filters = setup.Filters.Count == 0 ? "(none configured)" : string.Join(", ", setup.Filters);
-        return $"""
+        return $$"""
 Target:
-- query: {target.Query}
-- canonical name: {target.CanonicalName}
-- J2000 RA: {target.RaHours.ToString("0.######", CultureInfo.InvariantCulture)} hours
-- J2000 Dec: {target.DecDeg.ToString("0.######", CultureInfo.InvariantCulture)} degrees
+- query: {{target.Query}}
+- canonical name: {{target.CanonicalName}}
+- J2000 RA: {{target.RaHours.ToString("0.######", CultureInfo.InvariantCulture)}} hours
+- J2000 Dec: {{target.DecDeg.ToString("0.######", CultureInfo.InvariantCulture)}} degrees
 
 Active N.I.N.A. setup:
-- profile: {setup.ProfileName}
-- telescope: {setup.TelescopeName}
-- focal length: {setup.FocalLengthMm:0.##} mm
-- focal ratio: f/{setup.FocalRatio:0.##}
-- camera: {setup.CameraName}
-- pixel size: {setup.PixelSizeMicrons:0.###} µm
-- sensor: {setup.SensorWidthPixels} x {setup.SensorHeightPixels} px
-- field of view: {setup.FieldWidthDeg:0.###} x {setup.FieldHeightDeg:0.###} deg
-- image scale: {setup.ImageScaleArcsecPerPixel:0.###} arcsec/px
-- Bayer pattern: {setup.BayerPattern}
-- configured filter names (exact): {filters}
-- default gain: {setup.DefaultGain?.ToString() ?? "camera"}
-- default offset: {setup.DefaultOffset?.ToString() ?? "camera"}
-- readout mode: {setup.ReadoutMode?.ToString() ?? "camera"}
-- site: lat {setup.LatitudeDeg:0.####}, lon {setup.LongitudeDeg:0.####}, elevation {setup.ElevationM:0} m
+- profile: {{setup.ProfileName}}
+- telescope: {{setup.TelescopeName}}
+- focal length: {{setup.FocalLengthMm:0.##}} mm
+- focal ratio: f/{{setup.FocalRatio:0.##}}
+- camera: {{setup.CameraName}}
+- pixel size: {{setup.PixelSizeMicrons:0.###}} µm
+- sensor: {{setup.SensorWidthPixels}} x {{setup.SensorHeightPixels}} px
+- field of view: {{setup.FieldWidthDeg:0.###}} x {{setup.FieldHeightDeg:0.###}} deg
+- image scale: {{setup.ImageScaleArcsecPerPixel:0.###}} arcsec/px
+- Bayer pattern: {{setup.BayerPattern}}
+- configured filter names (exact): {{filters}}
+- default gain: {{setup.DefaultGain?.ToString() ?? "camera"}}
+- default offset: {{setup.DefaultOffset?.ToString() ?? "camera"}}
+- readout mode: {{setup.ReadoutMode?.ToString() ?? "camera"}}
+- site: lat {{setup.LatitudeDeg:0.####}}, lon {{setup.LongitudeDeg:0.####}}, elevation {{setup.ElevationM:0}} m
 
 Optional user preference:
-{(string.IsNullOrWhiteSpace(preferences) ? "(none)" : preferences.Trim())}
+{{(string.IsNullOrWhiteSpace(preferences) ? "(none)" : preferences.Trim())}}
 
 Return exactly this JSON shape:
-{{
+{
   "targetType": "emission nebula|reflection nebula|dark nebula|galaxy|planetary nebula|supernova remnant|cluster|other",
   "angularWidthArcmin": number,
   "angularHeightArcmin": number,
@@ -85,7 +85,7 @@ Return exactly this JSON shape:
   "smartExposureOrder": boolean,
   "strategySummary": "short explanation",
   "exposures": [
-    {{
+    {
       "filter": "exact N.I.N.A. filter name or OSC",
       "subSeconds": number,
       "totalMinutes": number,
@@ -99,9 +99,9 @@ Return exactly this JSON shape:
       "moonRelaxScale": number,
       "moonDownEnabled": boolean,
       "twilight": "Nighttime|Astronomical|Nautical|Civil"
-    }}
+    }
   ]
-}}
+}
 """;
     }
 
