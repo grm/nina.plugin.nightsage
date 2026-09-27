@@ -16,7 +16,7 @@ public sealed class PlanningService {
     }
 
     public Task<ImagingPlan> BuildPlanAsync(string targetQuery, string userPreferences, SetupContext setup, ILLMProvider provider, CancellationToken cancellationToken) =>
-        BuildPlanAsync(targetQuery, userPreferences, setup, Array.Empty<TargetSchedulerTemplateInfo>(), IntegrationAmbition.Balanced, provider, cancellationToken);
+        BuildPlanAsync(targetQuery, userPreferences, setup, Array.Empty<TargetSchedulerTemplateInfo>(), IntegrationAmbition.Balanced, null, provider, cancellationToken);
 
     public Task<ImagingPlan> BuildPlanAsync(
         string targetQuery,
@@ -25,7 +25,17 @@ public sealed class PlanningService {
         IReadOnlyList<TargetSchedulerTemplateInfo> templates,
         ILLMProvider provider,
         CancellationToken cancellationToken) =>
-        BuildPlanAsync(targetQuery, userPreferences, setup, templates, IntegrationAmbition.Balanced, provider, cancellationToken);
+        BuildPlanAsync(targetQuery, userPreferences, setup, templates, IntegrationAmbition.Balanced, null, provider, cancellationToken);
+
+    public Task<ImagingPlan> BuildPlanAsync(
+        string targetQuery,
+        string userPreferences,
+        SetupContext setup,
+        IReadOnlyList<TargetSchedulerTemplateInfo> templates,
+        IntegrationAmbition ambition,
+        ILLMProvider provider,
+        CancellationToken cancellationToken) =>
+        BuildPlanAsync(targetQuery, userPreferences, setup, templates, ambition, null, provider, cancellationToken);
 
     public async Task<ImagingPlan> BuildPlanAsync(
         string targetQuery,
@@ -33,6 +43,7 @@ public sealed class PlanningService {
         SetupContext setup,
         IReadOnlyList<TargetSchedulerTemplateInfo> templates,
         IntegrationAmbition ambition,
+        FramingSnapshot? framing,
         ILLMProvider provider,
         CancellationToken cancellationToken) {
 
@@ -51,14 +62,15 @@ You may request a different exposure duration when it has a real imaging purpose
 For such a special exposure, set preferredTemplate to the same-filter existing template that should be cloned as the technical base.
 NightSage will preserve the selected base template's gain, offset, binning, readout, twilight, dithering, humidity and moon-avoidance settings and change only exposure duration.
 Only propose low-level camera/moon settings from scratch when no same-filter template exists.
-Total integration is the desired project total, not necessarily one night's duration.
 The integration ambition is not a duration bucket. Never add unnecessary hours just to match a preset.
+When an approved N.I.N.A. framing is supplied, do not change its geometry. The exposure totals you return are PER PANEL.
+For a mosaic, the integration ambition applies to the TOTAL project time across all panels, not to each panel separately.
 """;
 
-        var prompt = BuildPlanPrompt(target, setup, templates, userPreferences, ambition);
+        var prompt = BuildPlanPrompt(target, setup, templates, userPreferences, ambition, framing);
         var raw = await provider.CompleteJsonAsync(system, prompt, cancellationToken).ConfigureAwait(false);
         using var doc = JsonPayload.ParseObject(raw);
-        var plan = ParsePlan(doc.RootElement, target, setup, ambition);
+        var plan = ParsePlan(doc.RootElement, target, setup, ambition, framing);
         var validated = validator.Validate(plan, setup);
         var warning = IntegrationAmbitionPolicy.OverrunWarning(ambition, validated.TotalIntegrationMinutes / 60.0);
         if (!string.IsNullOrWhiteSpace(warning)) validated.Warnings.Add(warning);
@@ -70,7 +82,8 @@ The integration ambition is not a duration bucket. Never add unnecessary hours j
         SetupContext setup,
         IReadOnlyList<TargetSchedulerTemplateInfo> templates,
         string preferences,
-        IntegrationAmbition ambition) {
+        IntegrationAmbition ambition,
+        FramingSnapshot? framing) {
 
         var filters = setup.Filters.Count == 0 ? "(none configured)" : string.Join(", ", setup.Filters);
         var templateText = templates.Count == 0
@@ -78,12 +91,26 @@ The integration ambition is not a duration bucket. Never add unnecessary hours j
             : string.Join(Environment.NewLine, templates.Select(t =>
                 $"- {t.Name}: filter={t.FilterName}, exposure={t.DefaultExposure:0.###}s, gain={t.Gain}, offset={t.Offset}, bin={t.Binning}, readout={t.ReadoutMode}, moonAvoidance={t.MoonAvoidanceEnabled}, moonSep={t.MoonAvoidanceSeparation:0.#}°, moonWidth={t.MoonAvoidanceWidth}"));
 
+        var framingText = framing == null
+            ? "(none — plan as a single target centered on the resolved coordinates)"
+            : string.Join(Environment.NewLine, new[] {
+                $"- source: {framing.Source}",
+                $"- center J2000 RA: {framing.CenterRaHours.ToString("0.######", CultureInfo.InvariantCulture)} hours",
+                $"- center J2000 Dec: {framing.CenterDecDeg.ToString("0.######", CultureInfo.InvariantCulture)} degrees",
+                $"- grid: {framing.GridDisplay}",
+                $"- panel count: {framing.PanelCount}",
+                $"- overlap: {framing.OverlapDisplay}",
+                "- panels:",
+                string.Join(Environment.NewLine, framing.Panels.Select(p =>
+                    $"  - {p.Name}: RA={p.RaHours.ToString("0.######", CultureInfo.InvariantCulture)}h, Dec={p.DecDeg.ToString("0.######", CultureInfo.InvariantCulture)}deg, rotation={p.RotationDegrees.ToString("0.###", CultureInfo.InvariantCulture)}deg"))
+            });
+
         return $$"""
 Target:
 - query: {{target.Query}}
 - canonical name: {{target.CanonicalName}}
-- J2000 RA: {{target.RaHours.ToString("0.######", CultureInfo.InvariantCulture)}} hours
-- J2000 Dec: {{target.DecDeg.ToString("0.######", CultureInfo.InvariantCulture)}} degrees
+- catalog J2000 RA: {{target.RaHours.ToString("0.######", CultureInfo.InvariantCulture)}} hours
+- catalog J2000 Dec: {{target.DecDeg.ToString("0.######", CultureInfo.InvariantCulture)}} degrees
 
 Integration ambition: {{ambition}}
 Ambition guidance: {{IntegrationAmbitionPolicy.PlanningGuidance(ambition)}}
@@ -105,8 +132,15 @@ Active N.I.N.A. setup:
 Existing Target Scheduler exposure templates:
 {{templateText}}
 
+Approved N.I.N.A. framing:
+{{framingText}}
+
 Optional user planning instructions:
 {{(string.IsNullOrWhiteSpace(preferences) ? "(none)" : preferences.Trim())}}
+
+If framing is a mosaic, totalMinutes in each exposure is the desired integration PER PANEL.
+Remember that project total integration equals the sum of per-panel exposure totals multiplied by the panel count.
+Do not increase exposure time merely because multiple panels exist; balance the result quality against the selected integration ambition for the whole project.
 
 Return exactly this JSON shape:
 {
@@ -143,22 +177,30 @@ Return exactly this JSON shape:
 """;
     }
 
-    private static ImagingPlan ParsePlan(JsonElement root, ResolvedTarget target, SetupContext setup, IntegrationAmbition ambition) {
+    private static ImagingPlan ParsePlan(
+        JsonElement root,
+        ResolvedTarget target,
+        SetupContext setup,
+        IntegrationAmbition ambition,
+        FramingSnapshot? framing) {
+
         var plan = new ImagingPlan {
             TargetName = string.IsNullOrWhiteSpace(target.CanonicalName) ? target.Query : target.CanonicalName,
             TargetType = JsonPayload.String(root, "targetType", "other"),
             Ambition = ambition,
-            RaHours = target.RaHours, DecDeg = target.DecDeg,
+            RaHours = framing?.CenterRaHours ?? target.RaHours,
+            DecDeg = framing?.CenterDecDeg ?? target.DecDeg,
             AngularWidthArcmin = JsonPayload.Double(root, "angularWidthArcmin"),
             AngularHeightArcmin = JsonPayload.Double(root, "angularHeightArcmin"),
-            RotationDegrees = JsonPayload.Double(root, "rotationDegrees"),
+            RotationDegrees = framing?.PrimaryRotationDegrees ?? JsonPayload.Double(root, "rotationDegrees"),
             MinimumAltitudeDegrees = JsonPayload.Double(root, "minimumAltitudeDegrees", 30),
             MinimumSessionMinutes = JsonPayload.Int(root, "minimumSessionMinutes", 60),
             ProjectPriority = JsonPayload.String(root, "projectPriority", "Normal"),
             FilterSwitchFrequency = JsonPayload.Int(root, "filterSwitchFrequency", 0),
             DitherEvery = JsonPayload.Int(root, "ditherEvery", 1),
             SmartExposureOrder = JsonPayload.Bool(root, "smartExposureOrder", true),
-            StrategySummary = JsonPayload.String(root, "strategySummary")
+            StrategySummary = JsonPayload.String(root, "strategySummary"),
+            Framing = framing
         };
 
         if (root.TryGetProperty("exposures", out var exposures) && exposures.ValueKind == JsonValueKind.Array) {
