@@ -7,81 +7,146 @@
     </ResourceDictionary.MergedDictionaries>
 
     <DataTemplate x:Key="NightSage_Options">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="8">
-                <Expander Header="NightSage planner" IsExpanded="True">
-                    <ContentControl Margin="4,6,4,8"
-                                    Content="{Binding Workspace}"
-                                    ContentTemplate="{StaticResource NightSage_Workspace}"/>
-                </Expander>
+        <Grid Margin="8">
+            <TabControl>
+                <TabItem Header="Target &amp; Plan">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ContentControl Margin="6"
+                                        Content="{Binding Workspace}"
+                                        ContentTemplate="{StaticResource NightSage_Workspace}"/>
+                    </ScrollViewer>
+                </TabItem>
 
-                <Expander Header="Settings" IsExpanded="False" Margin="0,8,0,0">
-                    <StackPanel Margin="10,8,10,10" MaxWidth="900" HorizontalAlignment="Left">
-                        <TextBlock FontSize="16" FontWeight="SemiBold" Text="AI provider" Margin="0,0,0,8"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
-                                   Text="NightSage sends setup/target planning context to the selected provider. API keys are encrypted locally for the current Windows user."/>
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="520"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,7" Text="AI provider"/>
-                            <ComboBox Grid.Row="0" Grid.Column="1" Margin="4" ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider}"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,7" Text="Model"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Margin="4" Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,7" Text="Custom API endpoint"/>
-                            <TextBox Grid.Row="2" Grid.Column="1" Margin="4" Text="{Binding Endpoint, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Leave blank for the provider default. Use this for OpenAI-compatible or local endpoints."/>
-                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,7" Text="API key"/>
-                            <PasswordBox Grid.Row="3" Grid.Column="1" Margin="4" x:Name="ApiKeyBox" PasswordChanged="ApiKeyBox_OnPasswordChanged"/>
+                <TabItem Header="Framing">
+                    <Grid Margin="6" DataContext="{Binding Workspace}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,7" Text="Default autonomy mode"/>
-                            <StackPanel Grid.Row="4" Grid.Column="1" Margin="4">
-                                <ComboBox ItemsSource="{Binding AutonomyModes}" SelectedItem="{Binding AutonomyMode}"/>
-                                <TextBlock Margin="0,3,0,0" Opacity="0.72" TextWrapping="Wrap"
-                                           Text="Preview = no writes. Create = create the analyzed plan. Autopilot = discover, plan and create automatically; missing templates still require confirmation."/>
-                            </StackPanel>
+                        <Border Grid.Row="0" BorderThickness="1" Padding="8" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="Framing &amp; Mosaic"/>
+                                    <TextBlock Margin="0,3,0,0" TextWrapping="Wrap" Text="{Binding FramingEmbedStatus}"/>
+                                    <TextBlock Margin="0,5,0,0" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding FramingNotice}"/>
+                                    <TextBlock Margin="0,3,0,0" Opacity="0.75" TextWrapping="Wrap" Text="{Binding FramingSummary}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Top">
+                                    <Button Content="Load current plan" Command="{Binding LoadCurrentPlanIntoFramingCommand}"
+                                            Padding="10,4" Margin="0,0,6,0"
+                                            ToolTip="Load the current NightSage target into the shared N.I.N.A. Framing Assistant. This starts from a single panel."/>
+                                    <Button Content="Recalculate plan" Command="{Binding RecalculateFromFramingCommand}"
+                                            Padding="10,4" Margin="0,0,6,0"
+                                            ToolTip="Adopt the current framing, including mosaic panels, and recalculate acquisition/integration before Target Scheduler creation."/>
+                                    <Button Content="Open native tab" Command="{Binding OpenNativeFramingCommand}" Padding="10,4"
+                                            ToolTip="Open N.I.N.A.'s standard Framing Assistant tab. It uses the exact same framing state."/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
 
-                            <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,7" Text="Minimum target altitude"/>
-                            <StackPanel Grid.Row="5" Grid.Column="1" Margin="4">
-                                <TextBox Text="{Binding MinimumAltitudeDegrees, UpdateSourceTrigger=LostFocus}"/>
-                                <TextBlock Margin="0,3,0,0" Opacity="0.72" Text="Used by discovery and deterministic visibility checks (degrees)."/>
-                            </StackPanel>
+                        <TextBlock Grid.Row="1" Margin="2,0,0,6" Opacity="0.75" TextWrapping="Wrap"
+                                   Text="Use the native controls below to choose the survey/catalog source, center, rotation, panel grid and overlap. Edits made here or in N.I.N.A.'s normal Framing Assistant are shared immediately." />
 
-                            <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,7" FontWeight="SemiBold" Text="Target Scheduler behavior"/>
-                            <StackPanel Grid.Row="6" Grid.Column="1" Margin="4">
-                                <Grid Margin="0,2">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Create new projects as Active"/>
-                                        <TextBlock Opacity="0.72" Text="OFF creates projects as Draft for review."/>
+                        <Border Grid.Row="2" BorderThickness="1" Padding="2" MinHeight="620">
+                            <ContentControl Content="{Binding NativeFramingView}"
+                                            HorizontalContentAlignment="Stretch"
+                                            VerticalContentAlignment="Stretch"/>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Settings">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="10" MaxWidth="980" HorizontalAlignment="Left">
+                            <Expander Header="AI provider" IsExpanded="True">
+                                <StackPanel Margin="10,8,10,10">
+                                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                                               Text="NightSage sends setup/target planning context to the selected provider. API keys are encrypted locally for the current Windows user."/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="560"/></Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,7" Text="AI provider"/>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" Margin="4" ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,7" Text="Model"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" Margin="4" Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,7" Text="Custom API endpoint"/>
+                                        <TextBox Grid.Row="2" Grid.Column="1" Margin="4" Text="{Binding Endpoint, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Leave blank for the provider default. Use this for OpenAI-compatible or local endpoints."/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,7" Text="API key"/>
+                                        <PasswordBox Grid.Row="3" Grid.Column="1" Margin="4" x:Name="ApiKeyBox" PasswordChanged="ApiKeyBox_OnPasswordChanged"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,7" Text="Provider connection"/>
+                                        <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="4">
+                                            <Button Content="Test provider" Command="{Binding TestProviderCommand}" Padding="12,4"/>
+                                            <TextBlock Margin="12,5,0,0" Text="{Binding ProviderTestStatus}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
+
+                            <Expander Header="Planning defaults" IsExpanded="False" Margin="0,8,0,0">
+                                <Grid Margin="10,8,10,10">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="560"/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,7" Text="Default autonomy mode"/>
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="4">
+                                        <ComboBox ItemsSource="{Binding AutonomyModes}" SelectedItem="{Binding AutonomyMode}"/>
+                                        <TextBlock Margin="0,3,0,0" Opacity="0.72" TextWrapping="Wrap"
+                                                   Text="Preview = no writes. Create = create the analyzed plan. Autopilot = discover, plan and create automatically; missing templates still require confirmation."/>
                                     </StackPanel>
-                                    <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding ActivateCreatedProjects}"/>
-                                </Grid>
-                                <Grid Margin="0,8,0,2">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Use existing Target Scheduler targets during discovery"/>
-                                        <TextBlock Opacity="0.72" TextWrapping="Wrap" Text="Lets NightSage avoid duplicates and consider work already in progress."/>
-                                    </StackPanel>
-                                    <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding IncludeExistingTargets}"/>
-                                </Grid>
-                            </StackPanel>
 
-                            <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,7" Text="Provider connection"/>
-                            <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Margin="4">
-                                <Button Content="Test provider" Command="{Binding TestProviderCommand}" Padding="12,4"/>
-                                <TextBlock Margin="12,5,0,0" Text="{Binding ProviderTestStatus}"/>
-                            </StackPanel>
-                        </Grid>
-                        <TextBlock Margin="0,14,0,0" TextWrapping="Wrap"
-                                   Text="Exposure templates: NightSage prefers your existing Target Scheduler templates. If a special exposure length is needed, it proposes a same-filter template as the base and asks before creating the derived template."/>
-                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Text="OSC/no filter wheel: Target Scheduler requires a named filter in the N.I.N.A. filter configuration. Configure a dummy filter such as OSC/LP; the physical wheel can remain disconnected."/>
-                    </StackPanel>
-                </Expander>
-            </StackPanel>
-        </ScrollViewer>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,7" Text="Minimum target altitude"/>
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="4">
+                                        <TextBox Text="{Binding MinimumAltitudeDegrees, UpdateSourceTrigger=LostFocus}"/>
+                                        <TextBlock Margin="0,3,0,0" Opacity="0.72" Text="Used by discovery and deterministic visibility checks (degrees)."/>
+                                    </StackPanel>
+                                </Grid>
+                            </Expander>
+
+                            <Expander Header="Target Scheduler" IsExpanded="False" Margin="0,8,0,0">
+                                <StackPanel Margin="10,8,10,10" Width="770">
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Create new projects as Active"/>
+                                            <TextBlock Opacity="0.72" Text="OFF creates projects as Draft for review."/>
+                                        </StackPanel>
+                                        <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding ActivateCreatedProjects}"/>
+                                    </Grid>
+                                    <Grid Margin="0,10,0,2">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Use existing Target Scheduler targets during discovery"/>
+                                            <TextBlock Opacity="0.72" TextWrapping="Wrap" Text="Lets NightSage avoid duplicates and consider work already in progress."/>
+                                        </StackPanel>
+                                        <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding IncludeExistingTargets}"/>
+                                    </Grid>
+                                    <TextBlock Margin="0,12,0,0" TextWrapping="Wrap"
+                                               Text="Exposure templates remain the technical source of truth. Framing mosaics are created as one Target Scheduler mosaic project with one target per N.I.N.A. Framing Assistant panel."/>
+                                </StackPanel>
+                            </Expander>
+
+                            <Expander Header="Notes" IsExpanded="False" Margin="0,8,0,0">
+                                <StackPanel Margin="10,8,10,10" Width="770">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Text="If a special exposure length is needed, NightSage proposes a same-filter template as the base and asks before creating the derived template."/>
+                                    <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                               Text="OSC/no filter wheel: Target Scheduler requires a named filter in the N.I.N.A. filter configuration. Configure a dummy filter such as OSC/LP; the physical wheel can remain disconnected."/>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </Grid>
     </DataTemplate>
 </ResourceDictionary>
