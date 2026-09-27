@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace NINA.Plugin.NightSage.Models;
 
@@ -106,18 +108,32 @@ public sealed class TargetSchedulerTemplateInfo {
     public string DisplayLine => $"{Name} — {DefaultExposure:0.#}s · G{Gain} O{Offset} · B{Binning}";
 }
 
-public sealed class ExposureTemplateChoice {
+public sealed class ExposureTemplateChoice : INotifyPropertyChanged {
+    private TargetSchedulerTemplateInfo? selectedTemplate;
     public ExposureRecommendation Exposure { get; set; } = new();
     public IReadOnlyList<TargetSchedulerTemplateInfo> CompatibleTemplates { get; set; } = Array.Empty<TargetSchedulerTemplateInfo>();
-    public TargetSchedulerTemplateInfo? SelectedTemplate { get; set; }
+    public TargetSchedulerTemplateInfo? SelectedTemplate {
+        get => selectedTemplate;
+        set {
+            if (ReferenceEquals(selectedTemplate, value)) return;
+            selectedTemplate = value;
+            Raise();
+            Raise(nameof(UsesExistingUnchanged));
+            Raise(nameof(RequiresCreation));
+            Raise(nameof(IsDerived));
+            Raise(nameof(ActionSummary));
+        }
+    }
     public bool UsesExistingUnchanged => SelectedTemplate != null && Math.Abs(SelectedTemplate.DefaultExposure - Exposure.SubSeconds) < 0.01;
     public bool RequiresCreation => !UsesExistingUnchanged;
     public bool IsDerived => SelectedTemplate != null && RequiresCreation;
     public string ActionSummary => UsesExistingUnchanged
         ? $"Use existing: {SelectedTemplate!.Name}"
         : IsDerived
-            ? $"Create {Exposure.Filter} {Exposure.SubSeconds:0.#}s from '{SelectedTemplate!.Name}' (preserve technical settings)"
+            ? $"Clone '{SelectedTemplate!.Name}' → {Exposure.SubSeconds:0.#}s; preserve gain/offset/binning/readout/moon/twilight"
             : $"Create new {Exposure.Filter} {Exposure.SubSeconds:0.#}s template (no same-filter base available)";
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void Raise([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 public sealed class VisibilitySummary {

@@ -21,12 +21,10 @@ public sealed class PlanValidator {
         foreach (var exposure in plan.Exposures ?? new()) {
             var requested = exposure.Filter?.Trim() ?? "";
             string? actual;
-
             if (setup.Filters.Count == 0) {
                 actual = string.IsNullOrWhiteSpace(requested) ? "OSC" : requested;
-                if (!plan.Warnings.Contains("No N.I.N.A. filters are configured. Preview works, but Target Scheduler creation requires a configured dummy filter for color-camera/no-wheel setups.")) {
+                if (!plan.Warnings.Contains("No N.I.N.A. filters are configured. Preview works, but Target Scheduler creation requires a configured dummy filter for color-camera/no-wheel setups."))
                     plan.Warnings.Add("No N.I.N.A. filters are configured. Preview works, but Target Scheduler creation requires a configured dummy filter for color-camera/no-wheel setups.");
-                }
             } else {
                 actual = FilterMatcher.Match(requested, setup.Filters);
                 if (actual == null) {
@@ -50,27 +48,20 @@ public sealed class PlanValidator {
             validated.Add(exposure);
         }
 
+        // HDR and bright-star plans may legitimately contain several exposure lengths for the same filter.
         plan.Exposures = validated
-            .GroupBy(x => x.Filter, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => $"{x.Filter.ToUpperInvariant()}|{x.SubSeconds:0.###}")
             .Select(g => g.First())
             .ToList();
 
-        if (plan.Exposures.Count == 0) {
-            throw new InvalidOperationException(setup.Filters.Count == 0
-                ? "No usable exposure was returned. Configure a dummy N.I.N.A. filter if you want Target Scheduler creation with a color camera and no filter wheel."
-                : "The LLM did not return any exposure using a filter configured in the active N.I.N.A. profile.");
-        }
+        if (plan.Exposures.Count == 0) throw new InvalidOperationException(setup.Filters.Count == 0
+            ? "No usable exposure was returned. Configure a dummy N.I.N.A. filter if you want Target Scheduler creation with a color camera and no filter wheel."
+            : "The LLM did not return any exposure using a filter configured in the active N.I.N.A. profile.");
 
-        if (setup.FieldWidthDeg > 0 && setup.FieldHeightDeg > 0 &&
-            plan.AngularWidthArcmin > 0 && plan.AngularHeightArcmin > 0) {
-            var candidate = new TargetCandidate {
-                AngularWidthArcmin = plan.AngularWidthArcmin,
-                AngularHeightArcmin = plan.AngularHeightArcmin
-            };
-            var fit = AstronomyMath.FieldFitScore(setup, candidate);
+        if (setup.FieldWidthDeg > 0 && setup.FieldHeightDeg > 0 && plan.AngularWidthArcmin > 0 && plan.AngularHeightArcmin > 0) {
+            var fit = AstronomyMath.FieldFitScore(setup, new TargetCandidate { AngularWidthArcmin = plan.AngularWidthArcmin, AngularHeightArcmin = plan.AngularHeightArcmin });
             if (fit < 0.35) plan.Warnings.Add("The target is a poor fit for the current sensor/focal length; consider a mosaic or a different setup.");
         }
-
         plan.IsValidated = true;
         return plan;
     }
@@ -82,28 +73,9 @@ public sealed class PlanValidator {
         if (max.HasValue) v = Math.Min(v, max.Value);
         return v;
     }
-
-    private static string NormalizePriority(string? value) {
-        var v = value?.Trim().ToLowerInvariant();
-        return v switch { "low" => "Low", "high" => "High", _ => "Normal" };
-    }
-
-    private static string NormalizeTwilight(string? value) {
-        var v = value?.Trim().ToLowerInvariant();
-        return v switch {
-            "civil" => "Civil",
-            "nautical" => "Nautical",
-            "astronomical" => "Astronomical",
-            _ => "Nighttime"
-        };
-    }
-
-    private static double NormalizeDeg(double value) {
-        value %= 360;
-        if (value < 0) value += 360;
-        return value;
-    }
-
+    private static string NormalizePriority(string? value) => value?.Trim().ToLowerInvariant() switch { "low" => "Low", "high" => "High", _ => "Normal" };
+    private static string NormalizeTwilight(string? value) => value?.Trim().ToLowerInvariant() switch { "civil" => "Civil", "nautical" => "Nautical", "astronomical" => "Astronomical", _ => "Nighttime" };
+    private static double NormalizeDeg(double value) { value %= 360; return value < 0 ? value + 360 : value; }
     private static double Clamp(double value, double min, double max) => Math.Max(min, Math.Min(max, value));
 }
 
@@ -111,16 +83,12 @@ public static class FilterMatcher {
     public static string? Match(string requested, IReadOnlyCollection<string> available) {
         if (available.Count == 0) return null;
         if (string.IsNullOrWhiteSpace(requested)) return available.Count == 1 ? available.First() : null;
-
         var exact = available.FirstOrDefault(x => string.Equals(x.Trim(), requested.Trim(), StringComparison.OrdinalIgnoreCase));
         if (exact != null) return exact;
-
         var req = Canonical(requested);
         var normalized = available.Select(x => (Original: x, Canonical: Canonical(x))).ToList();
         var canonical = normalized.FirstOrDefault(x => x.Canonical == req);
         if (!string.IsNullOrEmpty(canonical.Original)) return canonical.Original;
-
-        // A single-filter OSC rig is unambiguous even if the model says OSC/Color.
         if (available.Count == 1 && (req is "osc" or "color" or "broadband" or "clear")) return available.First();
         return null;
     }
@@ -131,20 +99,8 @@ public static class FilterMatcher {
             if (char.GetUnicodeCategory(ch) == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
             if (char.IsLetterOrDigit(ch)) sb.Append(ch);
         }
-        var s = sb.ToString()
-            .Replace("hydrogenalpha", "ha")
-            .Replace("halpha", "ha")
-            .Replace("hydrogen", "h")
-            .Replace("oxygeniii", "oiii")
-            .Replace("oxygen3", "oiii")
-            .Replace("sulfurii", "sii")
-            .Replace("sulphurii", "sii")
-            .Replace("sulfur2", "sii")
-            .Replace("sulphur2", "sii")
-            .Replace("luminance", "l")
-            .Replace("red", "r")
-            .Replace("green", "g")
-            .Replace("blue", "b");
-        return s;
+        return sb.ToString().Replace("hydrogenalpha","ha").Replace("halpha","ha").Replace("hydrogen","h")
+            .Replace("oxygeniii","oiii").Replace("oxygen3","oiii").Replace("sulfurii","sii").Replace("sulphurii","sii")
+            .Replace("sulfur2","sii").Replace("sulphur2","sii").Replace("luminance","l").Replace("red","r").Replace("green","g").Replace("blue","b");
     }
 }
