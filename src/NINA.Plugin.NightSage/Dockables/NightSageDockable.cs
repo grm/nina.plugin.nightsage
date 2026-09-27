@@ -54,6 +54,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     private bool framingAssociatedWithCurrentPlan;
     private bool framingPlanOutdated;
     private string framingBaselineFingerprint = "";
+    private int selectedWorkspaceTabIndex;
 
     public NightSageDockable(
         IProfileService profileService,
@@ -121,6 +122,15 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     public IFramingAssistantVM NativeFramingViewModel => framingIntegration.ViewModel;
     public DataTemplate? NativeFramingTemplate => framingIntegration.EmbeddedTemplate;
     public string FramingEmbedStatus => framingIntegration.EmbedStatus;
+
+    public int SelectedWorkspaceTabIndex {
+        get => selectedWorkspaceTabIndex;
+        set {
+            if (selectedWorkspaceTabIndex == value) return;
+            selectedWorkspaceTabIndex = Math.Clamp(value, 0, 2);
+            RaisePropertyChanged();
+        }
+    }
 
     public string TargetQuery { get => targetQuery; set { targetQuery = value ?? ""; RaisePropertyChanged(); RaiseCommands(); } }
     public string UserPreferences { get => userPreferences; set { userPreferences = value ?? ""; RaisePropertyChanged(); } }
@@ -337,6 +347,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     }
 
     private async Task AnalyzeAsync() {
+        framingIntegration.Reset();
         ClearPlan();
         Status = $"Resolving and planning {TargetQuery.Trim()}…";
         var setup = equipment.Capture();
@@ -353,6 +364,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     }
 
     private async Task DiscoverAsync() {
+        framingIntegration.Reset();
         ClearPlanAndDiscovery();
         var settings = settingsStore.Load();
         var categories = DiscoveryCategoryCatalog.SelectedKeys(settings);
@@ -390,6 +402,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     private async Task PlanSelectedCoreAsync() {
         if (SelectedCandidate == null) return;
         TargetQuery = SelectedCandidate.Name;
+        framingIntegration.Reset();
         ClearPlan();
         Status = $"Building full {IntegrationAmbition} plan for {SelectedCandidate.Name}…";
         var setup = equipment.Capture();
@@ -405,6 +418,14 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
 
     private async Task LoadCurrentPlanIntoFramingAsync() {
         if (CurrentPlan == null) return;
+
+        // Switch first so the embedded native Framing Assistant is measured.
+        // N.I.N.A.'s SetCoordinates waits for a non-zero BoundWidth before loading the survey image.
+        SelectedWorkspaceTabIndex = 1;
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null)
+            await dispatcher.InvokeAsync(() => { }, DispatcherPriority.Loaded);
+
         Status = $"Loading {CurrentPlan.TargetName} into the N.I.N.A. Framing Assistant…";
         var ok = await framingIntegration.LoadTargetAsync(
             CurrentPlan.TargetName,
@@ -453,6 +474,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         RebuildTemplateChoices(setup);
         ApplyFramingBaseline(snapshot, updateCurrentPlan: true);
         Status = $"Plan recalculated from framing · {CurrentPlan.TotalIntegrationDisplay} total.";
+        SelectedWorkspaceTabIndex = 0;
     }
 
     private Task OpenNativeFramingAsync() {
@@ -571,6 +593,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
 
     private void ProfileService_ProfileChanged(object? sender, EventArgs e) {
         targetSchedulerDetectionTimer.Start();
+        framingIntegration.Reset();
         ClearPlanAndDiscovery();
         _ = RefreshWithoutBusyAsync();
     }
