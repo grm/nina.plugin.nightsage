@@ -82,7 +82,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         createCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(CreateCurrentPlanAsync), () => CanRun() && CurrentPlan?.IsValidated == true && targetScheduler.CanWrite && (!framingAssociatedWithCurrentPlan || !FramingPlanOutdated));
         loadCurrentPlanIntoFramingCommand = new AsyncRelayCommand(
             () => ExecuteBusyAsync(LoadCurrentPlanIntoFramingAsync),
-            () => CanRun() && CurrentPlan?.IsValidated == true && framingIntegration.EmbeddedAvailable);
+            () => CanRun() && CurrentPlan?.IsValidated == true);
         recalculateFromFramingCommand = new AsyncRelayCommand(
             () => ExecuteBusyAsync(RecalculateFromFramingAsync),
             () => CanRun() && CurrentPlan?.IsValidated == true && framingAssociatedWithCurrentPlan && CurrentFraming?.Panels.Count > 0);
@@ -118,7 +118,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     public ObservableCollection<TargetCandidate> Candidates { get; } = new();
     public ObservableCollection<ExposureTemplateChoice> TemplateChoices { get; } = new();
 
-    public FrameworkElement? NativeFramingView => framingIntegration.EmbeddedView;
+    public IFramingAssistantVM NativeFramingViewModel => framingIntegration.ViewModel;
     public string FramingEmbedStatus => framingIntegration.EmbedStatus;
 
     public string TargetQuery { get => targetQuery; set { targetQuery = value ?? ""; RaisePropertyChanged(); RaiseCommands(); } }
@@ -404,9 +404,6 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
 
     private async Task LoadCurrentPlanIntoFramingAsync() {
         if (CurrentPlan == null) return;
-        if (!framingIntegration.EmbeddedAvailable)
-            throw new InvalidOperationException("Embedded framing is unavailable. Open the native Framing Assistant instead.");
-
         Status = $"Loading {CurrentPlan.TargetName} into the N.I.N.A. Framing Assistant…";
         var ok = await framingIntegration.LoadTargetAsync(
             CurrentPlan.TargetName,
