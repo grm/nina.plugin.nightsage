@@ -63,17 +63,30 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
         finally { (context as IDisposable)?.Dispose(); }
     }
 
-    public async Task<TargetSchedulerCreateResult> CreateAsync(string profileId, ImagingPlan plan, IReadOnlyList<ExposureTemplateChoice> choices, bool activateProject, CancellationToken cancellationToken) {
+    public async Task<TargetSchedulerCreateResult> CreateAsync(
+        string profileId,
+        ImagingPlan plan,
+        IReadOnlyList<ExposureTemplateChoice> choices,
+        bool activateProject,
+        CancellationToken cancellationToken) {
+
         if (!plan.IsValidated) throw new InvalidOperationException("NightSage will not write an unvalidated plan.");
         if (plan.Exposures.Count == 0) throw new InvalidOperationException("The plan has no exposures.");
         var a = Assembly ?? throw new InvalidOperationException("Target Scheduler is not loaded yet.");
         if (!IsCompatible(a.GetName().Version)) throw new InvalidOperationException(Status);
 
+        var plannedPanels = GetPlannedPanels(plan);
+        var existing = GetExistingTargets(profileId);
+        var duplicate = plannedPanels.FirstOrDefault(panel => existing.Any(x => EquivalentName(x.TargetName, panel.Name)));
+        if (duplicate != null)
+            return new TargetSchedulerCreateResult {
+                Success = false,
+                Message = $"Target '{duplicate.Name}' already exists in Target Scheduler for the active profile. NightSage will not create a duplicate."
+            };
+
         await WriteGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
             BackupDatabase(a);
-            if (GetExistingTargets(profileId).Any(x => EquivalentName(x.TargetName, plan.TargetName)))
-                return new TargetSchedulerCreateResult { Success = false, Message = $"Target '{plan.TargetName}' already exists in Target Scheduler for the active profile. NightSage will not create a duplicate." };
 
             object? context = null;
             var createdTemplates = new List<object>();
@@ -114,42 +127,80 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
                 }
 
                 var project = Activator.CreateInstance(projectType, profileId) ?? throw new InvalidOperationException("Could not instantiate a Target Scheduler Project.");
-                PopulateProject(project, plan, activateProject);
-
-                var target = Activator.CreateInstance(targetType) ?? throw new InvalidOperationException("Could not instantiate a Target Scheduler Target.");
-                ReflectionUtil.Set(target, "Name", plan.TargetName);
-                ReflectionUtil.Set(target, "Enabled", true);
-                ReflectionUtil.Set(target, "ra", plan.RaHours);
-                ReflectionUtil.Set(target, "dec", plan.DecDeg);
-                ReflectionUtil.Set(target, "rotation", plan.RotationDegrees);
-                ReflectionUtil.Set(target, "roi", 100.0);
-
-                var exposurePlans = ReflectionUtil.Get(target, "ExposurePlans") as IList ?? throw new InvalidOperationException("Target Scheduler Target.ExposurePlans is unavailable.");
-                foreach (var exp in plan.Exposures) {
-                    var ep = Activator.CreateInstance(exposurePlanType, profileId) ?? throw new InvalidOperationException("Could not instantiate a Target Scheduler ExposurePlan.");
-                    ReflectionUtil.Set(ep, "ExposureTemplateId", ReflectionUtil.Get<int>(templateByExposure[exp], "Id"));
-                    ReflectionUtil.Set(ep, "Exposure", -1.0); // inherit the chosen template; the template is the technical source of truth
-                    ReflectionUtil.Set(ep, "Desired", exp.DesiredCount);
-                    ReflectionUtil.Set(ep, "Acquired", 0);
-                    ReflectionUtil.Set(ep, "Accepted", 0);
-                    ReflectionUtil.Set(ep, "IsEnabled", true);
-                    exposurePlans.Add(ep);
-                }
+                PopulateProject(project, plan, activateProject, plannedPanels.Count > 1);
 
                 var targets = ReflectionUtil.Get(project, "Targets") as IList ?? throw new InvalidOperationException("Target Scheduler Project.Targets is unavailable.");
-                targets.Add(target);
+                foreach (var panel in plannedPanels) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var target = Activator.CreateInstance(targetType) ?? throw new InvalidOperationException("Could not instantiate a Target Scheduler Target.");
+                    ReflectionUtil.Set(target, "Name", panel.Name);
+                    ReflectionUtil.Set(target, "Enabled", true);
+                    ReflectionUtil.Set(target, "ra", panel.RaHours);
+                    ReflectionUtil.Set(target, "dec", panel.DecDeg);
+                    ReflectionUtil.Set(target, "rotation", panel.RotationDegrees);
+                    ReflectionUtil.Set(target, "roi", 100.0);
+
+                    var exposurePlans = ReflectionUtil.Get(target, "ExposurePlans") as IList
+                                        ?? throw new InvalidOperationException("Target Scheduler Target.ExposurePlans is unavailable.");
+                    foreach (var exp in plan.Exposures) {
+                        var ep = Activator.CreateInstance(exposurePlanType, profileId)
+                                 ?? throw new InvalidOperationException("Could not instantiate a Target Scheduler ExposurePlan.");
+                        ReflectionUtil.Set(ep, "ExposureTemplateId", ReflectionUtil.Get<int>(templateByExposure[exp], "Id"));
+                        ReflectionUtil.Set(ep, "Exposure", -1.0);
+                        ReflectionUtil.Set(ep, "Desired", exp.DesiredCount);
+                        ReflectionUtil.Set(ep, "Acquired", 0);
+                        ReflectionUtil.Set(ep, "Accepted", 0);
+                        ReflectionUtil.Set(ep, "IsEnabled", true);
+                        exposurePlans.Add(ep);
+                    }
+                    targets.Add(target);
+                }
+
                 var savedProject = ReflectionUtil.Invoke(context, "AddNewProject", project);
                 if (savedProject == null) {
                     CleanupTemplates(context, createdTemplates);
                     return new TargetSchedulerCreateResult { Success = false, Message = "Target Scheduler rejected the new project." };
                 }
+
                 var projectName = ReflectionUtil.Get<string>(savedProject, "Name") ?? ReflectionUtil.Get<string>(project, "Name") ?? "";
-                return new TargetSchedulerCreateResult { Success = true, ProjectName = projectName, Message = $"Created '{projectName}' with {plan.Exposures.Count} exposure plan(s)." };
+                var detail = plannedPanels.Count > 1
+                    ? $"{plannedPanels.Count} mosaic panels, {plan.Exposures.Count} exposure plan(s) per panel"
+                    : $"{plan.Exposures.Count} exposure plan(s)";
+
+                return new TargetSchedulerCreateResult {
+                    Success = true,
+                    ProjectName = projectName,
+                    Message = $"Created '{projectName}' with {detail}."
+                };
             } catch {
                 if (context != null) CleanupTemplates(context, createdTemplates);
                 throw;
             } finally { (context as IDisposable)?.Dispose(); }
         } finally { WriteGate.Release(); }
+    }
+
+    private static List<FramingPanel> GetPlannedPanels(ImagingPlan plan) {
+        if (plan.Framing?.Panels.Count > 0) {
+            return plan.Framing.Panels.Select((p, index) => new FramingPanel {
+                Index = p.Index > 0 ? p.Index : index + 1,
+                Name = plan.Framing.PanelCount > 1
+                    ? (string.IsNullOrWhiteSpace(p.Name) ? $"{plan.TargetName} Panel {index + 1}" : p.Name)
+                    : plan.TargetName,
+                RaHours = p.RaHours,
+                DecDeg = p.DecDeg,
+                RotationDegrees = p.RotationDegrees
+            }).ToList();
+        }
+
+        return new List<FramingPanel> {
+            new() {
+                Index = 1,
+                Name = plan.TargetName,
+                RaHours = plan.RaHours,
+                DecDeg = plan.DecDeg,
+                RotationDegrees = plan.RotationDegrees
+            }
+        };
     }
 
     private static TargetSchedulerTemplateInfo ToTemplateInfo(object t) {
@@ -169,45 +220,79 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
     }
 
     private static object SaveTemplate(object context, object template, List<object> created) {
-        var saved = ReflectionUtil.Invoke(context, "SaveExposureTemplate", template) ?? throw new InvalidOperationException("Target Scheduler could not save an exposure template.");
+        var saved = ReflectionUtil.Invoke(context, "SaveExposureTemplate", template)
+                    ?? throw new InvalidOperationException("Target Scheduler could not save an exposure template.");
         created.Add(saved);
         return saved;
     }
 
     private static void CopyTechnicalSettings(object source, object dest) {
-        foreach (var name in new[] { "Gain","Offset","bin","ReadoutMode","twilightlevel_col","MinutesOffset","MoonAvoidanceEnabled","MoonAvoidanceSeparation","MoonAvoidanceWidth","MoonRelaxScale","MoonRelaxMaxAltitude","MoonRelaxMinAltitude","MoonDownEnabled","DitherEvery","MaximumHumidity" })
+        foreach (var name in new[] {
+                     "Gain","Offset","bin","ReadoutMode","twilightlevel_col","MinutesOffset",
+                     "MoonAvoidanceEnabled","MoonAvoidanceSeparation","MoonAvoidanceWidth","MoonRelaxScale",
+                     "MoonRelaxMaxAltitude","MoonRelaxMinAltitude","MoonDownEnabled","DitherEvery","MaximumHumidity"
+                 })
             ReflectionUtil.Set(dest, name, ReflectionUtil.Get(source, name));
     }
 
     private static void PopulateFromPlan(object template, ExposureRecommendation exp) {
         ReflectionUtil.Set(template, "DefaultExposure", exp.SubSeconds);
-        ReflectionUtil.Set(template, "Gain", exp.Gain ?? -1); ReflectionUtil.Set(template, "Offset", exp.Offset ?? -1);
-        ReflectionUtil.Set(template, "bin", (int?)exp.Binning); ReflectionUtil.Set(template, "ReadoutMode", exp.ReadoutMode ?? -1);
+        ReflectionUtil.Set(template, "Gain", exp.Gain ?? -1);
+        ReflectionUtil.Set(template, "Offset", exp.Offset ?? -1);
+        ReflectionUtil.Set(template, "bin", (int?)exp.Binning);
+        ReflectionUtil.Set(template, "ReadoutMode", exp.ReadoutMode ?? -1);
         ReflectionUtil.Set(template, "twilightlevel_col", exp.Twilight switch { "Astronomical" => 1, "Nautical" => 2, "Civil" => 3, _ => 0 });
-        ReflectionUtil.Set(template, "MoonAvoidanceEnabled", exp.MoonAvoidanceEnabled); ReflectionUtil.Set(template, "MoonAvoidanceSeparation", exp.MoonSeparationDeg);
-        ReflectionUtil.Set(template, "MoonAvoidanceWidth", exp.MoonWidthDays); ReflectionUtil.Set(template, "MoonRelaxScale", exp.MoonRelaxScale);
+        ReflectionUtil.Set(template, "MoonAvoidanceEnabled", exp.MoonAvoidanceEnabled);
+        ReflectionUtil.Set(template, "MoonAvoidanceSeparation", exp.MoonSeparationDeg);
+        ReflectionUtil.Set(template, "MoonAvoidanceWidth", exp.MoonWidthDays);
+        ReflectionUtil.Set(template, "MoonRelaxScale", exp.MoonRelaxScale);
         ReflectionUtil.Set(template, "MoonDownEnabled", exp.MoonDownEnabled);
     }
 
-    private static object CreateInteraction(Assembly a) => Activator.CreateInstance(a.GetType("NINA.Plugin.TargetScheduler.Database.SchedulerDatabaseInteraction", true)!)!;
-    private static void BackupDatabase(Assembly a) { try { a.GetType("NINA.Plugin.TargetScheduler.Database.SchedulerDatabaseInteraction")?.GetMethod("BackupDatabase", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, null); } catch { } }
+    private static object CreateInteraction(Assembly a) =>
+        Activator.CreateInstance(a.GetType("NINA.Plugin.TargetScheduler.Database.SchedulerDatabaseInteraction", true)!)!;
+
+    private static void BackupDatabase(Assembly a) {
+        try {
+            a.GetType("NINA.Plugin.TargetScheduler.Database.SchedulerDatabaseInteraction")
+                ?.GetMethod("BackupDatabase", BindingFlags.Public | BindingFlags.Static)
+                ?.Invoke(null, null);
+        } catch { }
+    }
+
     private static bool IsCompatible(Version? version) => version != null && version.Major == 5 && version.Minor == 9;
     private static string BuildNewTemplateName(ExposureRecommendation e) => $"NightSage {e.Filter} {e.SubSeconds:0.#}s";
     private static string BuildDerivedTemplateName(ExposureRecommendation e, string baseName) => $"NightSage {e.Filter} {e.SubSeconds:0.#}s ← {baseName}";
-    private static void CleanupTemplates(object context, IEnumerable<object> templates) { foreach (var t in templates.Reverse()) try { ReflectionUtil.Invoke(context, "DeleteExposureTemplate", t); } catch { } }
+
+    private static void CleanupTemplates(object context, IEnumerable<object> templates) {
+        foreach (var t in templates.Reverse())
+            try { ReflectionUtil.Invoke(context, "DeleteExposureTemplate", t); } catch { }
+    }
+
     private static bool EquivalentName(string a, string b) {
         static string N(string s) => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
-        var x=N(a); var y=N(b); return x.Length>0 && x==y;
+        var x = N(a);
+        var y = N(b);
+        return x.Length > 0 && x == y;
     }
-    private static void PopulateProject(object project, ImagingPlan plan, bool activate) {
+
+    private static void PopulateProject(object project, ImagingPlan plan, bool activate, bool isMosaic) {
         ReflectionUtil.Set(project, "Name", $"NightSage - {plan.TargetName}");
-        ReflectionUtil.Set(project, "Description", $"Created by NightSage 0.1.1-alpha. {plan.StrategySummary}".Trim());
-        ReflectionUtil.Set(project, "State", activate ? "Active" : "Draft"); ReflectionUtil.Set(project, "Priority", plan.ProjectPriority);
+        ReflectionUtil.Set(project, "Description", $"Created by NightSage 0.1.2-alpha. {plan.StrategySummary}".Trim());
+        ReflectionUtil.Set(project, "State", activate ? "Active" : "Draft");
+        ReflectionUtil.Set(project, "Priority", plan.ProjectPriority);
         if (activate) ReflectionUtil.Set(project, "ActiveDate", (DateTime?)DateTime.Now);
-        ReflectionUtil.Set(project, "MinimumTime", plan.MinimumSessionMinutes); ReflectionUtil.Set(project, "MinimumAltitude", plan.MinimumAltitudeDegrees);
-        ReflectionUtil.Set(project, "MaximumAltitude", 0.0); ReflectionUtil.Set(project, "UseCustomHorizon", false); ReflectionUtil.Set(project, "HorizonOffset", 0.0);
-        ReflectionUtil.Set(project, "MeridianWindow", 0); ReflectionUtil.Set(project, "FilterSwitchFrequency", plan.FilterSwitchFrequency);
-        ReflectionUtil.Set(project, "DitherEvery", plan.DitherEvery); ReflectionUtil.Set(project, "SmartExposureOrder", plan.SmartExposureOrder);
-        ReflectionUtil.Set(project, "EnableGrader", true); ReflectionUtil.Set(project, "IsMosaic", false); ReflectionUtil.Set(project, "FlatsHandling", 0);
+        ReflectionUtil.Set(project, "MinimumTime", plan.MinimumSessionMinutes);
+        ReflectionUtil.Set(project, "MinimumAltitude", plan.MinimumAltitudeDegrees);
+        ReflectionUtil.Set(project, "MaximumAltitude", 0.0);
+        ReflectionUtil.Set(project, "UseCustomHorizon", false);
+        ReflectionUtil.Set(project, "HorizonOffset", 0.0);
+        ReflectionUtil.Set(project, "MeridianWindow", 0);
+        ReflectionUtil.Set(project, "FilterSwitchFrequency", plan.FilterSwitchFrequency);
+        ReflectionUtil.Set(project, "DitherEvery", plan.DitherEvery);
+        ReflectionUtil.Set(project, "SmartExposureOrder", plan.SmartExposureOrder);
+        ReflectionUtil.Set(project, "EnableGrader", true);
+        ReflectionUtil.Set(project, "IsMosaic", isMosaic);
+        ReflectionUtil.Set(project, "FlatsHandling", 0);
     }
 }
