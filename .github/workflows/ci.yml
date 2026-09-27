@@ -16,24 +16,18 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
       - name: Restore
         run: dotnet restore NINA.Plugin.NightSage.sln
-
       - name: Build
         run: dotnet build NINA.Plugin.NightSage.sln -c Release -p:Platform=x64 --no-restore
-
       - name: Test
         run: dotnet test tests/NINA.Plugin.NightSage.Tests/NINA.Plugin.NightSage.Tests.csproj -c Release -p:Platform=x64 --no-build
-
       - name: Package
         if: github.event_name == 'push'
         shell: pwsh
@@ -49,16 +43,14 @@ jobs:
           Copy-Item README.md $stage
           Copy-Item CHANGELOG.md $stage
           Copy-Item LICENSE.txt $stage
-          Compress-Archive -Path "$stage/*" -DestinationPath "release/NightSage-0.1.0-alpha.1.zip" -Force
-
+          Compress-Archive -Path "$stage/*" -DestinationPath "release/NightSage-0.1.1-alpha.1.zip" -Force
       - name: Upload build artifact
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: NightSage-0.1.0-alpha.1
-          path: release/NightSage-0.1.0-alpha.1.zip
+          name: NightSage-0.1.1-alpha.1
+          path: release/NightSage-0.1.1-alpha.1.zip
           retention-days: 30
-
       - name: Publish prerelease
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
@@ -67,16 +59,10 @@ jobs:
         run: |
           $currentSha = git rev-parse HEAD
           $remoteSha = gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha
-          if ($currentSha -ne $remoteSha) {
-            Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."
-            exit 0
-          }
-          $tag = "v0.1.0-alpha.1"
+          if ($currentSha -ne $remoteSha) { Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."; exit 0 }
+          $tag = "v0.1.1-alpha.1"
           gh release delete $tag --yes --cleanup-tag 2>$null
           if ($LASTEXITCODE -ne 0) { Write-Host "No existing alpha release to replace." }
           git tag -f $tag
           git push origin $tag --force
-          gh release create $tag "release/NightSage-0.1.0-alpha.1.zip" `
-            --title "NightSage 0.1.0-alpha.1" `
-            --prerelease `
-            --notes-file CHANGELOG.md
+          gh release create $tag "release/NightSage-0.1.1-alpha.1.zip" --title "NightSage 0.1.1-alpha.1" --prerelease --notes-file CHANGELOG.md

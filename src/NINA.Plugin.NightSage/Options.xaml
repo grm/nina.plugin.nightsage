@@ -2,45 +2,71 @@
     x:Class="NINA.Plugin.NightSage.Options"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-
     <DataTemplate x:Key="NightSage_Options">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="8" MaxWidth="760">
+            <StackPanel Margin="8" MaxWidth="820">
                 <TextBlock FontSize="18" FontWeight="SemiBold" Text="NightSage — AI planning" Margin="0,0,0,12"/>
                 <TextBlock TextWrapping="Wrap" Margin="0,0,0,12"
                            Text="NightSage sends setup/target planning context to the selected provider. API keys are encrypted locally for the current Windows user."/>
-
                 <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,5" Text="Provider"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,7" Text="AI provider"/>
                     <ComboBox Grid.Row="0" Grid.Column="1" Margin="4" ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider}"/>
-                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,5" Text="Model"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,7" Text="Model"/>
                     <TextBox Grid.Row="1" Grid.Column="1" Margin="4" Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,5" Text="Endpoint override"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Margin="4" Text="{Binding Endpoint, UpdateSourceTrigger=PropertyChanged}" ToolTip="Leave blank for the provider default. Required for many OpenAI-compatible/local endpoints."/>
-                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,5" Text="API key"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,7" Text="Custom API endpoint"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" Margin="4" Text="{Binding Endpoint, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Leave blank for the provider default. Use this for OpenAI-compatible or local endpoints."/>
+                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,7" Text="API key"/>
                     <PasswordBox Grid.Row="3" Grid.Column="1" Margin="4" x:Name="ApiKeyBox" PasswordChanged="ApiKeyBox_OnPasswordChanged"/>
-                    <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,5" Text="Default autonomy"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" Margin="4" ItemsSource="{Binding AutonomyModes}" SelectedItem="{Binding AutonomyMode}"/>
-                    <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,5" Text="Minimum altitude"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Margin="4" Text="{Binding MinimumAltitudeDegrees, UpdateSourceTrigger=LostFocus}"/>
-                    <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,5" Text="Target Scheduler"/>
-                    <StackPanel Grid.Row="6" Grid.Column="1" Margin="4">
-                        <CheckBox IsChecked="{Binding ActivateCreatedProjects}" Content="Create projects Active (unchecked = Draft)"/>
-                        <CheckBox IsChecked="{Binding IncludeExistingTargets}" Content="Use current Target Scheduler targets during discovery"/>
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,7" Text="Default autonomy mode"/>
+                    <StackPanel Grid.Row="4" Grid.Column="1" Margin="4">
+                        <ComboBox ItemsSource="{Binding AutonomyModes}" SelectedItem="{Binding AutonomyMode}"/>
+                        <TextBlock Margin="0,3,0,0" Opacity="0.72" TextWrapping="Wrap"
+                                   Text="Preview = no writes. Create = create the analyzed plan. Autopilot = discover, plan and create automatically; missing templates still require confirmation."/>
                     </StackPanel>
-                    <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,5" Text="Connection"/>
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,7" Text="Minimum target altitude"/>
+                    <StackPanel Grid.Row="5" Grid.Column="1" Margin="4">
+                        <TextBox Text="{Binding MinimumAltitudeDegrees, UpdateSourceTrigger=LostFocus}"/>
+                        <TextBlock Margin="0,3,0,0" Opacity="0.72" Text="Used by discovery and deterministic visibility checks (degrees)."/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,7" FontWeight="SemiBold" Text="Target Scheduler behavior"/>
+                    <StackPanel Grid.Row="6" Grid.Column="1" Margin="4">
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Create new projects as Active"/>
+                                <TextBlock Opacity="0.72" Text="OFF creates projects as Draft for review."/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding ActivateCreatedProjects}"/>
+                        </Grid>
+                        <Grid Margin="0,8,0,2">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Use existing Target Scheduler targets during discovery"/>
+                                <TextBlock Opacity="0.72" TextWrapping="Wrap" Text="Lets NightSage avoid duplicates and consider work already in progress."/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding IncludeExistingTargets}"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,7" Text="Provider connection"/>
                     <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Margin="4">
                         <Button Content="Test provider" Command="{Binding TestProviderCommand}" Padding="12,4"/>
                         <TextBlock Margin="12,5,0,0" Text="{Binding ProviderTestStatus}"/>
                     </StackPanel>
                 </Grid>
                 <TextBlock Margin="0,14,0,0" TextWrapping="Wrap"
-                           Text="Target Scheduler note for OSC/no filter wheel: Target Scheduler requires a named filter in the N.I.N.A. filter configuration. Configure a dummy filter such as OSC/LP; the physical wheel can remain disconnected."/>
+                           Text="Exposure templates: NightSage prefers your existing Target Scheduler templates. If a special exposure length is needed (for example HDR 15s/60s), it proposes a same-filter template as the base and asks before creating the derived template."/>
+                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                           Text="OSC/no filter wheel: Target Scheduler requires a named filter in the N.I.N.A. filter configuration. Configure a dummy filter such as OSC/LP; the physical wheel can remain disconnected."/>
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>

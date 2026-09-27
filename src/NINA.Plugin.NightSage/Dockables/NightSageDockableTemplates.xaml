@@ -9,35 +9,95 @@
                     <TextBlock DockPanel.Dock="Left" FontSize="17" FontWeight="SemiBold" Text="NightSage"/>
                     <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" Padding="8,2"/>
                 </DockPanel>
+
                 <Border BorderThickness="1" Padding="7" Margin="0,0,0,8">
-                    <StackPanel><TextBlock FontWeight="SemiBold" Text="Active setup"/><TextBlock TextWrapping="Wrap" Text="{Binding SetupSummary}"/><TextBlock Margin="0,4,0,0" Text="{Binding TargetSchedulerStatus}"/></StackPanel>
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Active setup"/>
+                        <TextBlock TextWrapping="Wrap" Text="{Binding SetupSummary}"/>
+                        <TextBlock Margin="0,4,0,0" Text="{Binding TargetSchedulerStatus}"/>
+                    </StackPanel>
                 </Border>
-                <Grid Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0" Text="Mode"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding AutonomyModes}" SelectedItem="{Binding AutonomyMode}"/>
+
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Text="Autonomy mode"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding AutonomyModes}" SelectedItem="{Binding AutonomyMode}"
+                              ToolTip="Preview: never write. Create: build then create after confirmation when needed. Autopilot: discover, plan and create."/>
                 </Grid>
-                <TextBlock FontWeight="SemiBold" Text="Plan a target"/>
-                <TextBox Margin="0,4,0,4" Text="{Binding TargetQuery, UpdateSourceTrigger=PropertyChanged}" ToolTip="Examples: M1, IC 434, NGC 6888"/>
-                <TextBox Margin="0,0,0,6" MinHeight="42" AcceptsReturn="True" TextWrapping="Wrap" Text="{Binding UserPreferences, UpdateSourceTrigger=PropertyChanged}" ToolTip="Optional: RGB stars, maximum sub length, scientific goal, desired total time, etc."/>
+
+                <TextBlock FontWeight="SemiBold" Text="Plan a target" FontSize="14"/>
+                <TextBlock Margin="0,5,0,2" Text="Target name or catalog ID"/>
+                <TextBox Margin="0,0,0,7" Text="{Binding TargetQuery, UpdateSourceTrigger=PropertyChanged}" ToolTip="Examples: M1, IC 434, NGC 6888"/>
+                <TextBlock Margin="0,0,0,2" Text="Optional planning instructions"/>
+                <TextBlock Margin="0,0,0,3" Opacity="0.72" TextWrapping="Wrap"
+                           Text="Use this for requests such as HDR, short RGB stars, a maximum sub length, preferred palette, or a desired total integration."/>
+                <TextBox Margin="0,0,0,6" MinHeight="42" AcceptsReturn="True" TextWrapping="Wrap"
+                         Text="{Binding UserPreferences, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Example: HDR core with 15s and 60s exposures; keep long narrowband integrations."/>
                 <Button Content="Analyze target" Command="{Binding AnalyzeCommand}" Padding="10,4" HorizontalAlignment="Left"/>
+
                 <Separator Margin="0,10"/>
-                <DockPanel><TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" VerticalAlignment="Center" Text="Discover — next 7 days"/><Button DockPanel.Dock="Right" Content="Find targets" Command="{Binding DiscoverCommand}" Padding="10,4"/></DockPanel>
-                <ListBox Margin="0,5,0,5" MinHeight="110" MaxHeight="220" ItemsSource="{Binding Candidates}" SelectedItem="{Binding SelectedCandidate}" DisplayMemberPath="DisplayLine"/>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" VerticalAlignment="Center" Text="Discover — next 7 days"/>
+                    <Button DockPanel.Dock="Right" Content="Find targets" Command="{Binding DiscoverCommand}" Padding="10,4"/>
+                </DockPanel>
+                <TextBlock Margin="0,3,0,4" Opacity="0.72" TextWrapping="Wrap"
+                           Text="Select a recommendation below, then build its full acquisition plan."/>
+                <ListBox Margin="0,0,0,6" MinHeight="110" MaxHeight="220"
+                         Background="Transparent" ItemsSource="{Binding Candidates}" SelectedItem="{Binding SelectedCandidate}">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Padding" Value="7,5"/>
+                            <Setter Property="Margin" Value="0,1"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayLine}" TextWrapping="Wrap"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
                 <Button Content="Build plan for selected target" Command="{Binding PlanSelectedCommand}" Padding="10,4" HorizontalAlignment="Left"/>
+
                 <Separator Margin="0,10"/>
-                <DockPanel><TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Plan preview"/><Button DockPanel.Dock="Right" Content="Create in Target Scheduler" Command="{Binding CreateCommand}" Padding="10,4"/></DockPanel>
-                <TextBlock Margin="0,5,0,5" TextWrapping="Wrap" Text="{Binding PlanSummary}"/>
-                <ItemsControl ItemsSource="{Binding CurrentPlan.Exposures}">
-                    <ItemsControl.ItemTemplate><DataTemplate><Border BorderThickness="0,1,0,0" Padding="3"><Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="90"/><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" FontWeight="SemiBold" Text="{Binding Filter}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding SubSeconds, StringFormat={}{0:0}s subs}"/>
-                        <TextBlock Grid.Column="2" Text="{Binding DesiredCount, StringFormat={}{0} frames}"/>
-                        <TextBlock Grid.Column="3" Text="{Binding TotalMinutes, StringFormat={}{0:0} min total}"/>
-                    </Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Plan preview"/>
+                    <Button DockPanel.Dock="Right" Content="Create in Target Scheduler" Command="{Binding CreateCommand}" Padding="10,4"/>
+                </DockPanel>
+                <TextBlock Margin="0,5,0,8" TextWrapping="Wrap" Text="{Binding PlanSummary}"/>
+
+                <TextBlock FontWeight="SemiBold" Text="Exposure template mapping" Margin="0,2,0,2"/>
+                <TextBlock Opacity="0.72" TextWrapping="Wrap" Margin="0,0,0,5"
+                           Text="NightSage reuses an exact Target Scheduler template when possible. For a new exposure length, it proposes a same-filter template as the base. You can change that base before creation."/>
+                <ItemsControl ItemsSource="{Binding TemplateChoices}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderThickness="0,1,0,0" Padding="4,6">
+                                <Grid>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="55"/><ColumnDefinition Width="85"/><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="SemiBold" Text="{Binding Exposure.Filter}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Exposure.SubSeconds, StringFormat={}{0:0.#}s}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Exposure.DesiredCount, StringFormat={}{0} frames}"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="3" MinWidth="260"
+                                              ItemsSource="{Binding CompatibleTemplates}"
+                                              SelectedItem="{Binding SelectedTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              DisplayMemberPath="DisplayLine"
+                                              ToolTip="Choose which existing same-filter Target Scheduler template should be reused or used as the base."/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4" Margin="0,4,0,0" Opacity="0.78"
+                                               TextWrapping="Wrap" Text="{Binding ActionSummary}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Border Margin="0,10,0,0" Padding="6" BorderThickness="1"><TextBlock TextWrapping="Wrap" Text="{Binding Status}"/></Border>
+
+                <Border Margin="0,10,0,0" Padding="6" BorderThickness="1">
+                    <TextBlock TextWrapping="Wrap" Text="{Binding Status}"/>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>
