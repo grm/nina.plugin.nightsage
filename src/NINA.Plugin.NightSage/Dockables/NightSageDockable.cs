@@ -82,7 +82,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         createCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(CreateCurrentPlanAsync), () => CanRun() && CurrentPlan?.IsValidated == true && targetScheduler.CanWrite && (!framingAssociatedWithCurrentPlan || !FramingPlanOutdated));
         loadCurrentPlanIntoFramingCommand = new AsyncRelayCommand(
             () => ExecuteBusyAsync(LoadCurrentPlanIntoFramingAsync),
-            () => CanRun() && CurrentPlan?.IsValidated == true);
+            () => CanRun() && CurrentPlan?.IsValidated == true && framingIntegration.EmbeddedAvailable);
         recalculateFromFramingCommand = new AsyncRelayCommand(
             () => ExecuteBusyAsync(RecalculateFromFramingAsync),
             () => CanRun() && CurrentPlan?.IsValidated == true && framingAssociatedWithCurrentPlan && CurrentFraming?.Panels.Count > 0);
@@ -119,6 +119,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     public ObservableCollection<ExposureTemplateChoice> TemplateChoices { get; } = new();
 
     public IFramingAssistantVM NativeFramingViewModel => framingIntegration.ViewModel;
+    public DataTemplate? NativeFramingTemplate => framingIntegration.EmbeddedTemplate;
     public string FramingEmbedStatus => framingIntegration.EmbedStatus;
 
     public string TargetQuery { get => targetQuery; set { targetQuery = value ?? ""; RaisePropertyChanged(); RaiseCommands(); } }
