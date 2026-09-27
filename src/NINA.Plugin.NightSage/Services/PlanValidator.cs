@@ -58,7 +58,7 @@ public sealed class PlanValidator {
             ? "No usable exposure was returned. Configure a dummy N.I.N.A. filter if you want Target Scheduler creation with a color camera and no filter wheel."
             : "The LLM did not return any exposure using a filter configured in the active N.I.N.A. profile.");
 
-        if (setup.FieldWidthDeg > 0 && setup.FieldHeightDeg > 0 && plan.AngularWidthArcmin > 0 && plan.AngularHeightArcmin > 0) {
+        if (!plan.IsMosaic && setup.FieldWidthDeg > 0 && setup.FieldHeightDeg > 0 && plan.AngularWidthArcmin > 0 && plan.AngularHeightArcmin > 0) {
             var fit = AstronomyMath.FieldFitScore(setup, new TargetCandidate { AngularWidthArcmin = plan.AngularWidthArcmin, AngularHeightArcmin = plan.AngularHeightArcmin });
             if (fit < 0.35) plan.Warnings.Add("The target is a poor fit for the current sensor/focal length; consider a mosaic or a different setup.");
         }
