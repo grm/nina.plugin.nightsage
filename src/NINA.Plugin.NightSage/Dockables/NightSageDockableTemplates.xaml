@@ -142,9 +142,14 @@
                     <Border Margin="0,8,0,0" Padding="7" BorderThickness="1">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Integration summary"/>
-                            <TextBlock Margin="0,3,0,0" TextWrapping="Wrap" Text="{Binding CurrentPlan.FilterIntegrationSummary}"/>
+                            <TextBlock Margin="0,3,0,0" Opacity="0.75" Text="Per-panel filter integration"/>
+                            <TextBlock Margin="0,2,0,0" TextWrapping="Wrap" Text="{Binding CurrentPlan.FilterIntegrationSummary}"/>
                             <DockPanel Margin="0,5,0,0">
-                                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Total integration"/>
+                                <TextBlock DockPanel.Dock="Left" Text="Integration per panel"/>
+                                <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold" Text="{Binding CurrentPlan.IntegrationPerPanelDisplay}"/>
+                            </DockPanel>
+                            <DockPanel Margin="0,4,0,0">
+                                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Project total"/>
                                 <TextBlock DockPanel.Dock="Right" FontWeight="Bold" Text="{Binding CurrentPlan.TotalIntegrationDisplay}"/>
                             </DockPanel>
                         </StackPanel>
