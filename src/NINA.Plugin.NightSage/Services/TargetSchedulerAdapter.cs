@@ -24,7 +24,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
             var a = Assembly;
             if (a == null) return "Target Scheduler waiting to load…";
             var version = a.GetName().Version;
-            if (!IsCompatible(version)) return $"Target Scheduler {version} detected — NightSage supports 5.9.x";
+            if (!IsCompatible(version)) return $"Target Scheduler {version} detected — NightSage supports 5.9.x and 5.10.x";
             return $"Target Scheduler {version} ready";
         }
     }
@@ -260,7 +260,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
         } catch { }
     }
 
-    private static bool IsCompatible(Version? version) => version != null && version.Major == 5 && version.Minor == 9;
+    private static bool IsCompatible(Version? version) => version != null && version.Major == 5 && (version.Minor == 9 || version.Minor == 10);
     private static string BuildNewTemplateName(ExposureRecommendation e) => $"NightSage {e.Filter} {e.SubSeconds:0.#}s";
     private static string BuildDerivedTemplateName(ExposureRecommendation e, string baseName) => $"NightSage {e.Filter} {e.SubSeconds:0.#}s ← {baseName}";
 

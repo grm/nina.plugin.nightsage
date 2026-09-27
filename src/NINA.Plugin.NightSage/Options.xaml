@@ -67,8 +67,10 @@
                         <StackPanel Margin="10" MaxWidth="980" HorizontalAlignment="Left">
                             <Expander Header="AI provider" IsExpanded="True">
                                 <StackPanel Margin="10,8,10,10">
-                                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,5"
                                                Text="NightSage sends setup/target planning context to the selected provider. API keys are encrypted locally for the current Windows user."/>
+                                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,8" Opacity="0.72"
+                                               Text="Cloud planning can include target names/coordinates, equipment and filters, observing-site coordinates, Target Scheduler template metadata and—when enabled—existing target names. Use a local OpenAI-compatible endpoint if you want planning context to stay on-device."/>
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="560"/></Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>

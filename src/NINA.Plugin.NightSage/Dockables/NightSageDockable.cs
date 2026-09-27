@@ -410,6 +410,8 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
         var discoveryNote = $"Discovered as {SelectedCandidate.Category}. {SelectedCandidate.Reason}. " + UserPreferences;
         CurrentPlan = await planner.BuildPlanAsync(SelectedCandidate.Name, discoveryNote, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
+        if (!string.IsNullOrWhiteSpace(SelectedCandidate.TargetType))
+            CurrentPlan.TargetType = SelectedCandidate.TargetType;
         ResetFramingAssociation();
         RebuildTemplateChoices(setup);
         Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}. Open Framing to choose the composition.";

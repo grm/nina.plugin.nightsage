@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0-beta.1 — 2026-09-28
+
+First public-beta candidate.
+
+- Reworked repository and in-package documentation for first-time users.
+- Added a full user guide, privacy/data-flow documentation, troubleshooting, contribution and security guidance.
+- Added N.I.N.A. manifest metadata required/recommended for public distribution, including ShortDescription and ChangelogURL.
+- Target Scheduler integration now supports both 5.9.x and 5.10.x after verifying the database interaction methods and schema fields used by NightSage are compatible across those releases.
+- Plans built from Discovery now preserve the discovered target type instead of allowing the second LLM call to silently reclassify it.
+- Added an explicit cloud-planning privacy note to Settings.
+- Updated the CDS Sesame User-Agent for the 0.2 public beta line.
+- Release packages now include user/privacy/troubleshooting documentation.
+- Includes the complete target discovery → plan → native framing/mosaic → recalculate → Target Scheduler workflow from the 0.1.2 alpha series.
+- Includes the final integration-summary spacing polish.
+
 ## 0.1.2-alpha.3 — 2026-09-27
 
 Framing workflow navigation and discovery UI polish.

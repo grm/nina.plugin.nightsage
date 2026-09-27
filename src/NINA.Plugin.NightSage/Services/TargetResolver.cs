@@ -15,7 +15,7 @@ public sealed class SesameTargetResolver : ITargetResolver {
     public SesameTargetResolver(HttpClient? httpClient = null) {
         http = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
         if (!http.DefaultRequestHeaders.UserAgent.Any()) {
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("NightSage/0.1");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("NightSage/0.2");
         }
     }
 
