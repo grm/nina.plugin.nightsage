@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: nightsage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: windows-latest
@@ -64,6 +68,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $currentSha = git rev-parse HEAD
+          $remoteSha = gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha
+          if ($currentSha -ne $remoteSha) {
+            Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."
+            exit 0
+          }
           $tag = "v0.1.0-alpha.1"
           gh release delete $tag --yes --cleanup-tag 2>$null
           if ($LASTEXITCODE -ne 0) { Write-Host "No existing alpha release to replace." }
