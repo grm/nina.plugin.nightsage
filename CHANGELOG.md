@@ -6,7 +6,7 @@ Startup crash hotfix for embedded Framing Assistant.
 
 - Fixed an unhandled `InvalidCastException` during N.I.N.A. startup caused by constructing `FramingAssistantView` before it had a Window ancestor.
 - Removed eager/reflection-based Framing Assistant view construction from the NightSage plugin constructor.
-- The native `FramingAssistantView` is now materialized by NightSage XAML inside the live N.I.N.A. visual tree and receives the shared `IFramingAssistantVM` as its DataContext.
+- NightSage now creates a runtime WPF `DataTemplate` for the native `FramingAssistantView`; the actual view is materialized only inside the live N.I.N.A. visual tree and receives the shared `IFramingAssistantVM` as its DataContext.
 - Framing state sharing, change detection, recalculation and Target Scheduler mosaic creation remain unchanged.
 
 ## 0.1.2-alpha.1 — 2026-09-27
