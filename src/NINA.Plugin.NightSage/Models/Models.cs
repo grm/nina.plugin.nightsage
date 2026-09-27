@@ -103,6 +103,45 @@ public sealed class ResolvedTarget {
     public string Resolver { get; set; } = "";
 }
 
+public sealed class FramingPanel {
+    public int Index { get; set; }
+    public string Name { get; set; } = "";
+    public double RaHours { get; set; }
+    public double DecDeg { get; set; }
+    public double RotationDegrees { get; set; }
+    public string DisplayLine => $"{Name} · RA {RaHours:0.0000}h · Dec {DecDeg:+0.0000;-0.0000;0}° · rot {RotationDegrees:0.0}°";
+}
+
+public sealed class FramingSnapshot {
+    public string TargetName { get; set; } = "";
+    public string Source { get; set; } = "";
+    public int HorizontalPanels { get; set; } = 1;
+    public int VerticalPanels { get; set; } = 1;
+    public double OverlapValue { get; set; }
+    public string OverlapUnit { get; set; } = "%";
+    public double CenterRaHours { get; set; }
+    public double CenterDecDeg { get; set; }
+    public List<FramingPanel> Panels { get; set; } = new();
+
+    public int PanelCount => Math.Max(1, Panels.Count > 0 ? Panels.Count : HorizontalPanels * VerticalPanels);
+    public bool IsMosaic => PanelCount > 1 || HorizontalPanels > 1 || VerticalPanels > 1;
+    public double PrimaryRotationDegrees => Panels.FirstOrDefault()?.RotationDegrees ?? 0;
+    public string GridDisplay => $"{Math.Max(1, HorizontalPanels)}×{Math.Max(1, VerticalPanels)}";
+    public string OverlapDisplay => OverlapUnit == "%" ? $"{OverlapValue:0.#}%" : $"{OverlapValue:0} px";
+    public string Summary => IsMosaic
+        ? $"{TargetName} · {GridDisplay} mosaic · {PanelCount} panels · overlap {OverlapDisplay} · {Source}"
+        : $"{TargetName} · single panel · rot {PrimaryRotationDegrees:0.0}° · {Source}";
+
+    public string Fingerprint {
+        get {
+            var panelPart = string.Join("|", Panels
+                .OrderBy(x => x.Index)
+                .Select(x => $"{x.Index}:{x.RaHours:0.000000}:{x.DecDeg:0.000000}:{x.RotationDegrees:0.000}"));
+            return $"{TargetName}|{HorizontalPanels}|{VerticalPanels}|{OverlapValue:0.000}|{OverlapUnit}|{CenterRaHours:0.000000}|{CenterDecDeg:0.000000}|{panelPart}";
+        }
+    }
+}
+
 public sealed class ExposureRecommendation {
     public string Filter { get; set; } = "";
     public double SubSeconds { get; set; }
@@ -142,14 +181,21 @@ public sealed class ImagingPlan {
     public string StrategySummary { get; set; } = "";
     public List<ExposureRecommendation> Exposures { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
+    public FramingSnapshot? Framing { get; set; }
     public bool IsValidated { get; set; }
+
+    public int PanelCount => Math.Max(1, Framing?.PanelCount ?? 1);
+    public bool IsMosaic => PanelCount > 1;
     public string ExposureSummary => string.Join(Environment.NewLine, Exposures.Select(x => x.Summary));
-    public double TotalIntegrationMinutes => Exposures.Sum(x => x.PlannedIntegrationMinutes);
+    public double IntegrationPerPanelMinutes => Exposures.Sum(x => x.PlannedIntegrationMinutes);
+    public string IntegrationPerPanelDisplay => IntegrationTimeFormatter.FormatMinutes(IntegrationPerPanelMinutes);
+    public double TotalIntegrationMinutes => IntegrationPerPanelMinutes * PanelCount;
     public string TotalIntegrationDisplay => IntegrationTimeFormatter.FormatMinutes(TotalIntegrationMinutes);
     public string FilterIntegrationSummary => string.Join("  ·  ",
         Exposures
             .GroupBy(x => x.Filter, StringComparer.OrdinalIgnoreCase)
             .Select(g => $"{g.Key}: {IntegrationTimeFormatter.FormatMinutes(g.Sum(x => x.PlannedIntegrationMinutes))}"));
+    public string FramingSummary => Framing?.Summary ?? "No framing applied";
 }
 
 public sealed class TargetSchedulerTemplateInfo {
