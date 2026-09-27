@@ -8,6 +8,8 @@ using NINA.Plugin.NightSage.Infrastructure;
 using NINA.Plugin.NightSage.Models;
 using NINA.Plugin.NightSage.Providers;
 using NINA.Profile.Interfaces;
+using NINA.WPF.Base.Interfaces.Mediator;
+using NINA.WPF.Base.Interfaces.ViewModel;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
 using System.Runtime.CompilerServices;
@@ -22,9 +24,13 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
     private string providerTestStatus = "";
 
     [ImportingConstructor]
-    public NightSagePlugin(IProfileService profileService, ICameraMediator cameraMediator) {
+    public NightSagePlugin(
+        IProfileService profileService,
+        ICameraMediator cameraMediator,
+        IFramingAssistantVM framingAssistantVM,
+        IApplicationMediator applicationMediator) {
         settings = store.Load();
-        Workspace = new NightSageDockable(profileService, cameraMediator);
+        Workspace = new NightSageDockable(profileService, cameraMediator, framingAssistantVM, applicationMediator);
         TestProviderCommand = new AsyncRelayCommand(TestProviderAsync);
         Logger.Info("NightSage: plugin initialized");
     }
