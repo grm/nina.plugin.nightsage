@@ -41,17 +41,14 @@ jobs:
           $buildDir = "src/NINA.Plugin.NightSage/bin/x64/Release/net8.0-windows7.0"
           $stage = "release/NightSage"
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          Get-ChildItem -Path $buildDir -Recurse -File |
-            Where-Object { $_.Extension -ne ".pdb" -and $_.Name -notlike "*.deps.json" } |
-            ForEach-Object {
-              $rel = $_.FullName.Substring((Resolve-Path $buildDir).Path.Length + 1)
-              $dest = Join-Path $stage $rel
-              $destDir = Split-Path $dest -Parent
-              if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-              Copy-Item $_.FullName $dest
-            }
+          Copy-Item (Join-Path $buildDir "NINA.Plugin.NightSage.dll") $stage
+          $pdb = Join-Path $buildDir "NINA.Plugin.NightSage.pdb"
+          if (Test-Path $pdb) { Copy-Item $pdb $stage }
+          $protectedData = Join-Path $buildDir "System.Security.Cryptography.ProtectedData.dll"
+          if (Test-Path $protectedData) { Copy-Item $protectedData $stage }
           Copy-Item README.md $stage
           Copy-Item CHANGELOG.md $stage
+          Copy-Item LICENSE.txt $stage
           Compress-Archive -Path "$stage/*" -DestinationPath "release/NightSage-0.1.0-alpha.1.zip" -Force
 
       - name: Upload build artifact
