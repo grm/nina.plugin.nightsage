@@ -20,7 +20,6 @@ namespace NINA.Plugin.NightSage.Dockables;
 
 [Export(typeof(IDockableVM))]
 public sealed class NightSageDockable : DockableVM {
-    private readonly IProfileService profileService;
     private readonly EquipmentContextService equipment;
     private readonly PlanningService planner = new();
     private readonly DiscoveryService discovery = new();
@@ -45,7 +44,6 @@ public sealed class NightSageDockable : DockableVM {
 
     [ImportingConstructor]
     public NightSageDockable(IProfileService profileService, ICameraMediator cameraMediator) : base(profileService) {
-        this.profileService = profileService;
         equipment = new EquipmentContextService(profileService, cameraMediator);
 
         var dict = new ResourceDictionary {
