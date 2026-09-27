@@ -79,7 +79,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         analyzeCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(AnalyzeAsync), () => CanRun() && !string.IsNullOrWhiteSpace(TargetQuery));
         discoverCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(DiscoverAsync), CanRun);
         planSelectedCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(PlanSelectedAsync), () => CanRun() && SelectedCandidate != null);
-        createCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(CreateCurrentPlanAsync), () => CanRun() && CurrentPlan?.IsValidated == true && targetScheduler.CanWrite);
+        createCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(CreateCurrentPlanAsync), () => CanRun() && CurrentPlan?.IsValidated == true && targetScheduler.CanWrite && (!framingAssociatedWithCurrentPlan || !FramingPlanOutdated));
         loadCurrentPlanIntoFramingCommand = new AsyncRelayCommand(
             () => ExecuteBusyAsync(LoadCurrentPlanIntoFramingAsync),
             () => CanRun() && CurrentPlan?.IsValidated == true && framingIntegration.EmbeddedAvailable);
