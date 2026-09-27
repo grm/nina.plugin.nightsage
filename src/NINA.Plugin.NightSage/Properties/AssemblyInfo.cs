@@ -1,0 +1,23 @@
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+[assembly: Guid("D83EE60E-7628-4E43-B7A2-B94D7F2B9F9A")]
+[assembly: AssemblyTitle("NightSage")]
+[assembly: AssemblyDescription("AI target discovery and imaging planner for N.I.N.A.")]
+[assembly: AssemblyCompany("grm")]
+[assembly: AssemblyProduct("NightSage")]
+[assembly: AssemblyCopyright("Copyright © 2026")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+[assembly: AssemblyVersion("0.1.0.1")]
+[assembly: AssemblyFileVersion("0.1.0.1")]
+[assembly: AssemblyInformationalVersion("0.1.0-alpha.1")]
+[assembly: AssemblyMetadata("MinimumApplicationVersion", "3.2.0.9001")]
+[assembly: AssemblyMetadata("License", "MPL-2.0")]
+[assembly: AssemblyMetadata("LicenseURL", "https://www.mozilla.org/en-US/MPL/2.0/")]
+[assembly: AssemblyMetadata("Repository", "https://github.com/grm/nina.plugin.nightsage")]
+[assembly: AssemblyMetadata("Homepage", "https://github.com/grm/nina.plugin.nightsage")]
+[assembly: AssemblyMetadata("Tags", "AI,Planning,Target Scheduler,Automation")]
+[assembly: AssemblyMetadata("LongDescription", @"NightSage turns the active N.I.N.A. profile into an AI-assisted astrophotography planning workspace. Enter a known target to build an acquisition strategy or discover targets suited to the current setup over the next seven nights. Plans are validated against the actual equipment and can be created in Target Scheduler 5.9.x.")]
+[assembly: ComVisible(false)]
