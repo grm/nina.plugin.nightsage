@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.2-alpha.3 — 2026-09-27
+
+Framing workflow navigation and discovery UI polish.
+
+- **Find targets** now resets the shared N.I.N.A. Framing Assistant state so a previous target/image/mosaic cannot be mistaken for the new search context.
+- Starting a manual target analysis or building a different discovered target also clears stale framing.
+- Fixed invisible discovery target-type labels by rendering labels separately from N.I.N.A.'s ON/OFF switch-style checkboxes.
+- Added **Frame target** directly beside the plan actions.
+- **Frame target** switches to the Framing tab first, lets the embedded native Framing Assistant lay itself out, then loads the correct target and survey image.
+- NightSage tabs now have a bindable selected index for workflow navigation.
+- After **Recalculate plan**, NightSage automatically returns to **Target & Plan**, where the recalculated plan can be reviewed and created in Target Scheduler.
+- Profile changes also clear stale framing.
+
 ## 0.1.2-alpha.2 — 2026-09-27
 
 Startup crash hotfix for embedded Framing Assistant.
