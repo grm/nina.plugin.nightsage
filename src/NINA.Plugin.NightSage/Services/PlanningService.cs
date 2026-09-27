@@ -2,7 +2,6 @@ using NINA.Plugin.NightSage.Infrastructure;
 using NINA.Plugin.NightSage.Models;
 using NINA.Plugin.NightSage.Providers;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 
 namespace NINA.Plugin.NightSage.Services;
@@ -17,13 +16,23 @@ public sealed class PlanningService {
     }
 
     public Task<ImagingPlan> BuildPlanAsync(string targetQuery, string userPreferences, SetupContext setup, ILLMProvider provider, CancellationToken cancellationToken) =>
-        BuildPlanAsync(targetQuery, userPreferences, setup, Array.Empty<TargetSchedulerTemplateInfo>(), provider, cancellationToken);
+        BuildPlanAsync(targetQuery, userPreferences, setup, Array.Empty<TargetSchedulerTemplateInfo>(), IntegrationAmbition.Balanced, provider, cancellationToken);
+
+    public Task<ImagingPlan> BuildPlanAsync(
+        string targetQuery,
+        string userPreferences,
+        SetupContext setup,
+        IReadOnlyList<TargetSchedulerTemplateInfo> templates,
+        ILLMProvider provider,
+        CancellationToken cancellationToken) =>
+        BuildPlanAsync(targetQuery, userPreferences, setup, templates, IntegrationAmbition.Balanced, provider, cancellationToken);
 
     public async Task<ImagingPlan> BuildPlanAsync(
         string targetQuery,
         string userPreferences,
         SetupContext setup,
         IReadOnlyList<TargetSchedulerTemplateInfo> templates,
+        IntegrationAmbition ambition,
         ILLMProvider provider,
         CancellationToken cancellationToken) {
 
@@ -43,16 +52,26 @@ For such a special exposure, set preferredTemplate to the same-filter existing t
 NightSage will preserve the selected base template's gain, offset, binning, readout, twilight, dithering, humidity and moon-avoidance settings and change only exposure duration.
 Only propose low-level camera/moon settings from scratch when no same-filter template exists.
 Total integration is the desired project total, not necessarily one night's duration.
+The integration ambition is not a duration bucket. Never add unnecessary hours just to match a preset.
 """;
 
-        var prompt = BuildPlanPrompt(target, setup, templates, userPreferences);
+        var prompt = BuildPlanPrompt(target, setup, templates, userPreferences, ambition);
         var raw = await provider.CompleteJsonAsync(system, prompt, cancellationToken).ConfigureAwait(false);
         using var doc = JsonPayload.ParseObject(raw);
-        var plan = ParsePlan(doc.RootElement, target, setup);
-        return validator.Validate(plan, setup);
+        var plan = ParsePlan(doc.RootElement, target, setup, ambition);
+        var validated = validator.Validate(plan, setup);
+        var warning = IntegrationAmbitionPolicy.OverrunWarning(ambition, validated.TotalIntegrationMinutes / 60.0);
+        if (!string.IsNullOrWhiteSpace(warning)) validated.Warnings.Add(warning);
+        return validated;
     }
 
-    private static string BuildPlanPrompt(ResolvedTarget target, SetupContext setup, IReadOnlyList<TargetSchedulerTemplateInfo> templates, string preferences) {
+    private static string BuildPlanPrompt(
+        ResolvedTarget target,
+        SetupContext setup,
+        IReadOnlyList<TargetSchedulerTemplateInfo> templates,
+        string preferences,
+        IntegrationAmbition ambition) {
+
         var filters = setup.Filters.Count == 0 ? "(none configured)" : string.Join(", ", setup.Filters);
         var templateText = templates.Count == 0
             ? "(none available / Target Scheduler not loaded)"
@@ -65,6 +84,9 @@ Target:
 - canonical name: {{target.CanonicalName}}
 - J2000 RA: {{target.RaHours.ToString("0.######", CultureInfo.InvariantCulture)}} hours
 - J2000 Dec: {{target.DecDeg.ToString("0.######", CultureInfo.InvariantCulture)}} degrees
+
+Integration ambition: {{ambition}}
+Ambition guidance: {{IntegrationAmbitionPolicy.PlanningGuidance(ambition)}}
 
 Active N.I.N.A. setup:
 - profile: {{setup.ProfileName}}
@@ -121,10 +143,11 @@ Return exactly this JSON shape:
 """;
     }
 
-    private static ImagingPlan ParsePlan(JsonElement root, ResolvedTarget target, SetupContext setup) {
+    private static ImagingPlan ParsePlan(JsonElement root, ResolvedTarget target, SetupContext setup, IntegrationAmbition ambition) {
         var plan = new ImagingPlan {
             TargetName = string.IsNullOrWhiteSpace(target.CanonicalName) ? target.Query : target.CanonicalName,
             TargetType = JsonPayload.String(root, "targetType", "other"),
+            Ambition = ambition,
             RaHours = target.RaHours, DecDeg = target.DecDeg,
             AngularWidthArcmin = JsonPayload.Double(root, "angularWidthArcmin"),
             AngularHeightArcmin = JsonPayload.Double(root, "angularHeightArcmin"),

@@ -13,12 +13,22 @@ public sealed class DiscoveryService {
         this.resolver = resolver ?? new SesameTargetResolver();
     }
 
+    public Task<DiscoveryResult> DiscoverAsync(
+        SetupContext setup,
+        IReadOnlyCollection<ExistingTargetInfo> existingTargets,
+        ILLMProvider provider,
+        int days,
+        double minimumAltitude,
+        CancellationToken cancellationToken) =>
+        DiscoverAsync(setup, existingTargets, provider, days, minimumAltitude, IntegrationAmbition.Balanced, cancellationToken);
+
     public async Task<DiscoveryResult> DiscoverAsync(
         SetupContext setup,
         IReadOnlyCollection<ExistingTargetInfo> existingTargets,
         ILLMProvider provider,
         int days,
         double minimumAltitude,
+        IntegrationAmbition ambition,
         CancellationToken cancellationToken) {
 
         var system = """
@@ -28,9 +38,11 @@ Recommend targets that are genuinely plausible from the supplied site during the
 The plugin will independently resolve coordinates and calculate visibility, so use well-known resolvable catalog names (Messier, NGC, IC, Sharpless, Abell, etc.).
 Return one candidate for each requested category. Do not repeat the same physical object in multiple categories.
 Prefer unfinished existing Target Scheduler targets when they are a strong fit, but do not force them.
+Estimate a realistic total integration time for the intended result with this exact setup.
+The integration ambition is a tolerance for project length, not a duration bucket. Never make a target rank higher merely because it needs more hours.
 """;
 
-        var prompt = BuildPrompt(setup, existingTargets, days, minimumAltitude);
+        var prompt = BuildPrompt(setup, existingTargets, days, minimumAltitude, ambition);
         var raw = await provider.CompleteJsonAsync(system, prompt, cancellationToken).ConfigureAwait(false);
         using var doc = JsonPayload.ParseObject(raw);
 
@@ -56,6 +68,7 @@ Prefer unfinished existing Target Scheduler targets when they are a strong fit, 
                     DecDeg = resolved.DecDeg,
                     AngularWidthArcmin = JsonPayload.Double(item, "angularWidthArcmin"),
                     AngularHeightArcmin = JsonPayload.Double(item, "angularHeightArcmin"),
+                    EstimatedIntegrationHours = Math.Max(0, JsonPayload.Double(item, "estimatedIntegrationHours", 0)),
                     Reason = JsonPayload.String(item, "reason"),
                     ModelScore = Math.Clamp(JsonPayload.Double(item, "modelScore", 70), 0, 100)
                 };
@@ -69,7 +82,8 @@ Prefer unfinished existing Target Scheduler targets when they are a strong fit, 
                     NamesEquivalent(x.TargetName, candidate.Name) || NamesEquivalent(x.TargetName, name));
 
                 candidate.DeterministicScore = AstronomyMath.CandidateScore(setup, candidate, minimumAltitude);
-                candidate.TotalScore = candidate.DeterministicScore;
+                var ambitionAdjustment = IntegrationAmbitionPolicy.DiscoveryScoreAdjustment(ambition, candidate.EstimatedIntegrationHours);
+                candidate.TotalScore = Math.Clamp(candidate.DeterministicScore + ambitionAdjustment, 0, 100);
                 candidates.Add(candidate);
             }
         }
@@ -90,7 +104,8 @@ Prefer unfinished existing Target Scheduler targets when they are a strong fit, 
         SetupContext setup,
         IReadOnlyCollection<ExistingTargetInfo> existingTargets,
         int days,
-        double minimumAltitude) {
+        double minimumAltitude,
+        IntegrationAmbition ambition) {
 
         var existing = existingTargets.Count == 0
             ? "(none)"
@@ -103,6 +118,8 @@ Prefer unfinished existing Target Scheduler targets when they are a strong fit, 
 Current UTC date: {{DateTime.UtcNow:yyyy-MM-dd}}
 Discovery horizon: next {{days}} days
 Minimum useful target altitude: {{minimumAltitude:0}} deg
+Integration ambition: {{ambition}}
+Ambition guidance: {{IntegrationAmbitionPolicy.DiscoveryGuidance(ambition)}}
 
 Site:
 - latitude {{setup.LatitudeDeg.ToString("0.####", CultureInfo.InvariantCulture)}} deg
@@ -129,7 +146,8 @@ Return exactly:
       "targetType": "short type",
       "angularWidthArcmin": number,
       "angularHeightArcmin": number,
-      "reason": "why this setup and this week suit it",
+      "estimatedIntegrationHours": number,
+      "reason": "why this setup, this week and this integration ambition suit it",
       "modelScore": number from 0 to 100
     }
   ]
@@ -144,6 +162,7 @@ Return exactly one object in candidates for each category:
 6. Star cluster or broadband star field
 
 Do not omit a category merely because it is not the globally best choice; give the strongest realistic candidate for that category.
+Remember: shorter targets remain eligible in Balanced and Deep. Do not stretch estimated integration to match the selected ambition.
 """;
     }
 

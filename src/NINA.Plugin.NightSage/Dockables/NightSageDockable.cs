@@ -4,6 +4,7 @@ using NINA.Equipment.Interfaces.Mediator;
 using NINA.Plugin.NightSage.Infrastructure;
 using NINA.Plugin.NightSage.Models;
 using AutonomyModeEnum = NINA.Plugin.NightSage.Models.AutonomyMode;
+using IntegrationAmbitionEnum = NINA.Plugin.NightSage.Models.IntegrationAmbition;
 using NINA.Plugin.NightSage.Providers;
 using NINA.Plugin.NightSage.Services;
 using NINA.Profile.Interfaces;
@@ -43,6 +44,7 @@ public sealed class NightSageDockable : DockableVM {
     private ImagingPlan? currentPlan;
     private TargetCandidate? selectedCandidate;
     private AutonomyModeEnum autonomyMode;
+    private IntegrationAmbitionEnum integrationAmbition;
 
     [ImportingConstructor]
     public NightSageDockable(IProfileService profileService, ICameraMediator cameraMediator) : base(profileService) {
@@ -51,7 +53,9 @@ public sealed class NightSageDockable : DockableVM {
         ImageGeometry = (GeometryGroup)dict["NightSage_Icon"];
         ImageGeometry.Freeze();
         Title = "NightSage";
-        autonomyMode = settingsStore.Load().AutonomyMode;
+        var initialSettings = settingsStore.Load();
+        autonomyMode = initialSettings.AutonomyMode;
+        integrationAmbition = initialSettings.IntegrationAmbition;
 
         refreshCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(RefreshAsync), CanRun);
         analyzeCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(AnalyzeAsync), () => CanRun() && !string.IsNullOrWhiteSpace(TargetQuery));
@@ -74,6 +78,7 @@ public sealed class NightSageDockable : DockableVM {
     public ICommand PlanSelectedCommand { get; }
     public ICommand CreateCommand { get; }
     public IReadOnlyList<AutonomyModeEnum> AutonomyModes { get; } = Enum.GetValues<AutonomyModeEnum>();
+    public IReadOnlyList<IntegrationAmbitionEnum> IntegrationAmbitions { get; } = Enum.GetValues<IntegrationAmbitionEnum>();
     public ObservableCollection<TargetCandidate> Candidates { get; } = new();
     public ObservableCollection<ExposureTemplateChoice> TemplateChoices { get; } = new();
 
@@ -89,6 +94,21 @@ public sealed class NightSageDockable : DockableVM {
         set { autonomyMode = value; var s = settingsStore.Load(); s.AutonomyMode = value; settingsStore.Save(s); RaisePropertyChanged(); }
     }
 
+    public IntegrationAmbitionEnum IntegrationAmbition {
+        get => integrationAmbition;
+        set {
+            if (integrationAmbition == value) return;
+            integrationAmbition = value;
+            var s = settingsStore.Load(); s.IntegrationAmbition = value; settingsStore.Save(s);
+            ClearPlan();
+            Candidates.Clear();
+            SelectedCandidate = null;
+            Status = $"Integration ambition: {value}. Run discovery or analyze a target.";
+            RaisePropertyChanged();
+            RaiseCommands();
+        }
+    }
+
     public ImagingPlan? CurrentPlan {
         get => currentPlan;
         private set { currentPlan = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(PlanSummary)); RaiseCommands(); }
@@ -100,6 +120,7 @@ public sealed class NightSageDockable : DockableVM {
             var p = CurrentPlan; var sb = new StringBuilder();
             sb.AppendLine($"{p.TargetName} — {p.TargetType}");
             sb.AppendLine($"RA {p.RaHours:0.0000}h · Dec {p.DecDeg:+0.0000;-0.0000;0}° · rotation {p.RotationDegrees:0}°");
+            sb.AppendLine($"Integration ambition {p.Ambition} · planned {p.TotalIntegrationDisplay}");
             sb.AppendLine($"Min altitude {p.MinimumAltitudeDegrees:0}° · minimum session {p.MinimumSessionMinutes} min · {p.ProjectPriority} priority");
             sb.AppendLine(); sb.AppendLine(p.StrategySummary);
             if (p.Warnings.Count > 0) { sb.AppendLine(); foreach (var warning in p.Warnings) sb.AppendLine("⚠ " + warning); }
@@ -147,9 +168,9 @@ public sealed class NightSageDockable : DockableVM {
         TargetSchedulerStatus = targetScheduler.Status;
         var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
         var provider = LlmProviderFactory.Create(settingsStore.Load());
-        CurrentPlan = await planner.BuildPlanAsync(TargetQuery.Trim(), UserPreferences, setup, templates, provider, CancellationToken.None);
+        CurrentPlan = await planner.BuildPlanAsync(TargetQuery.Trim(), UserPreferences, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
         RebuildTemplateChoices(setup);
-        Status = $"Plan ready: {CurrentPlan.TargetName}";
+        Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}";
         if (AutonomyMode is AutonomyModeEnum.Create or AutonomyModeEnum.Autopilot) await CreateCurrentPlanCoreAsync();
     }
 
@@ -157,15 +178,15 @@ public sealed class NightSageDockable : DockableVM {
         ClearPlan();
         Candidates.Clear();
         SelectedCandidate = null;
-        Status = "Finding targets for the next 7 days…";
+        Status = $"Finding {IntegrationAmbition} targets for the next 7 days…";
         var setup = equipment.Capture(); SetupSummary = setup.Summary;
         var settings = settingsStore.Load();
         var existing = settings.IncludeExistingTargets ? targetScheduler.GetExistingTargets(setup.ProfileId) : Array.Empty<ExistingTargetInfo>();
         var provider = LlmProviderFactory.Create(settings);
-        var result = await discovery.DiscoverAsync(setup, existing, provider, Math.Clamp(settings.DiscoveryDays, 1, 14), settings.MinimumAltitudeDegrees, CancellationToken.None);
+        var result = await discovery.DiscoverAsync(setup, existing, provider, Math.Clamp(settings.DiscoveryDays, 1, 14), settings.MinimumAltitudeDegrees, IntegrationAmbition, CancellationToken.None);
         foreach (var c in result.Candidates) Candidates.Add(c);
         SelectedCandidate = Candidates.FirstOrDefault();
-        Status = Candidates.Count == 0 ? "No candidate survived deterministic visibility/resolution checks." : $"{Candidates.Count} candidate(s) ready.";
+        Status = Candidates.Count == 0 ? "No candidate survived deterministic visibility/resolution checks." : $"{Candidates.Count} candidate(s) ready for {IntegrationAmbition}.";
         if (AutonomyMode == AutonomyModeEnum.Autopilot && SelectedCandidate != null) { await PlanSelectedCoreAsync(); if (CurrentPlan != null) await CreateCurrentPlanCoreAsync(); }
     }
 
@@ -175,14 +196,14 @@ public sealed class NightSageDockable : DockableVM {
         if (SelectedCandidate == null) return;
         TargetQuery = SelectedCandidate.Name;
         ClearPlan();
-        Status = $"Building full plan for {SelectedCandidate.Name}…";
+        Status = $"Building full {IntegrationAmbition} plan for {SelectedCandidate.Name}…";
         var setup = equipment.Capture();
         var provider = LlmProviderFactory.Create(settingsStore.Load());
         var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
         var discoveryNote = $"Discovered as {SelectedCandidate.Category}. {SelectedCandidate.Reason}. " + UserPreferences;
-        CurrentPlan = await planner.BuildPlanAsync(SelectedCandidate.Name, discoveryNote, setup, templates, provider, CancellationToken.None);
+        CurrentPlan = await planner.BuildPlanAsync(SelectedCandidate.Name, discoveryNote, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
         RebuildTemplateChoices(setup);
-        Status = $"Plan ready: {CurrentPlan.TargetName}";
+        Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}";
         if (AutonomyMode == AutonomyModeEnum.Create) await CreateCurrentPlanCoreAsync();
     }
 

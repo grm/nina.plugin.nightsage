@@ -5,6 +5,51 @@ using System.Runtime.CompilerServices;
 namespace NINA.Plugin.NightSage.Models;
 
 public enum AutonomyMode { Preview, Create, Autopilot }
+public enum IntegrationAmbition { Quick, Balanced, Deep }
+
+public static class IntegrationAmbitionPolicy {
+    public static string PlanningGuidance(IntegrationAmbition ambition) => ambition switch {
+        IntegrationAmbition.Quick =>
+            "Optimize for a compact project. Prefer a compelling result in about 10 hours or less. Shorter plans are welcome. " +
+            "Do not sacrifice the core quality of the target merely to hit 10h; a modest overrun is allowed when clearly justified.",
+        IntegrationAmbition.Balanced =>
+            "There is no minimum integration time. Prefer quality-efficient projects that generally fit within about 20 hours. " +
+            "A 4h, 8h or 10h plan is fully valid when that is enough; never inflate integration just to fill a 10-20h range. " +
+            "Exceed about 20h only when the target genuinely benefits enough to justify it.",
+        _ =>
+            "Integration time is not a limiting factor. Choose the amount of data genuinely justified by this target and setup. " +
+            "Short projects remain fully valid: do not add hours merely because Deep was selected. Long 20h, 30h or 50h projects are allowed when faint structures or the intended result truly benefit."
+    };
+
+    public static string DiscoveryGuidance(IntegrationAmbition ambition) => ambition switch {
+        IntegrationAmbition.Quick =>
+            "Favor targets that can produce a compelling result with this exact setup in roughly 10 hours or less. " +
+            "Do not reject a slightly longer exceptional target, but prefer shorter high-return projects.",
+        IntegrationAmbition.Balanced =>
+            "No minimum duration. Targets that are excellent in 5-10 hours remain first-class choices. " +
+            "Also allow targets that benefit from moderate integrations up to roughly 20 hours. Do not prefer a target merely because it needs longer.",
+        _ =>
+            "Do not penalize a target because it could justify a long integration. 20h+ projects are allowed, but short 5-10h targets remain equally eligible and may rank first. " +
+            "Never reward duration itself; rank photographic suitability and expected result."
+    };
+
+    public static double DiscoveryScoreAdjustment(IntegrationAmbition ambition, double estimatedHours) {
+        if (estimatedHours <= 0) return 0;
+        return ambition switch {
+            IntegrationAmbition.Quick when estimatedHours > 10 => -Math.Min(30, (estimatedHours - 10) * 2.5),
+            IntegrationAmbition.Balanced when estimatedHours > 20 => -Math.Min(20, (estimatedHours - 20) * 1.5),
+            _ => 0
+        };
+    }
+
+    public static string? OverrunWarning(IntegrationAmbition ambition, double actualHours) => ambition switch {
+        IntegrationAmbition.Quick when actualHours > 11 =>
+            $"Planned integration is {actualHours:0.0}h, above the usual Quick target of about 10h; NightSage kept it because the proposed result may justify the overrun.",
+        IntegrationAmbition.Balanced when actualHours > 22 =>
+            $"Planned integration is {actualHours:0.0}h, above the usual Balanced range of about 20h; NightSage kept it because the proposed result may justify the overrun.",
+        _ => null
+    };
+}
 
 public static class IntegrationTimeFormatter {
     public static string FormatMinutes(double minutes) {
@@ -82,6 +127,7 @@ public sealed class ExposureRecommendation {
 public sealed class ImagingPlan {
     public string TargetName { get; set; } = "";
     public string TargetType { get; set; } = "";
+    public IntegrationAmbition Ambition { get; set; } = IntegrationAmbition.Balanced;
     public double RaHours { get; set; }
     public double DecDeg { get; set; }
     public double AngularWidthArcmin { get; set; }
@@ -178,13 +224,14 @@ public sealed class TargetCandidate {
     public double DecDeg { get; set; }
     public double AngularWidthArcmin { get; set; }
     public double AngularHeightArcmin { get; set; }
+    public double EstimatedIntegrationHours { get; set; }
     public string Reason { get; set; } = "";
     public double ModelScore { get; set; }
     public double DeterministicScore { get; set; }
     public double TotalScore { get; set; }
     public bool AlreadyInTargetScheduler { get; set; }
     public VisibilitySummary Visibility { get; set; } = new();
-    public string DisplayLine => $"{Category}: {Name} — score {TotalScore:0} · max alt {Visibility.MaxAltitudeDeg:0}° · {Visibility.DarkHoursAboveMinimum:0.0}h dark/usable";
+    public string DisplayLine => $"{Category}: {Name} — score {TotalScore:0} · ~{EstimatedIntegrationHours:0.#}h · max alt {Visibility.MaxAltitudeDeg:0}° · {Visibility.DarkHoursAboveMinimum:0.0}h dark/usable";
 }
 
 public sealed class DiscoveryResult {

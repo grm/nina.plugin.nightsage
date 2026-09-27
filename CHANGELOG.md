@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.1-alpha.4 — 2026-09-27
+
+Integration ambition and discovery polish.
+
+- Added Quick, Balanced and Deep integration ambitions to the main NightSage workspace.
+- Ambitions are nested rather than buckets: Balanced and Deep still consider excellent short-integration targets.
+- Quick favors compelling projects around 10h or less, with only a soft penalty beyond that.
+- Balanced has no minimum and softly discourages projects substantially beyond about 20h.
+- Deep removes time-based penalties entirely, but never rewards a target merely for needing more integration.
+- Analyze target and Find targets both use the selected ambition.
+- Discovery now asks for and displays a realistic estimated integration time for each candidate.
+- Plans show the ambition used and their planned total integration.
+- Changing ambition clears stale results so the next plan/discovery cannot be confused with the previous profile.
+- Find targets is now a compact right-aligned button.
+
 ## 0.1.1-alpha.3 — 2026-09-27
 
 Integration-time visibility.

@@ -12,6 +12,7 @@ public sealed class NightSageSettings {
     public string Endpoint { get; set; } = "";
     public string ApiKeyProtected { get; set; } = "";
     public AutonomyMode AutonomyMode { get; set; } = AutonomyMode.Preview;
+    public IntegrationAmbition IntegrationAmbition { get; set; } = IntegrationAmbition.Balanced;
     public bool ActivateCreatedProjects { get; set; } = false;
     public double MinimumAltitudeDegrees { get; set; } = 30;
     public int DiscoveryDays { get; set; } = 7;
