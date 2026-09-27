@@ -44,6 +44,32 @@ public sealed class FramingAssistantIntegration : IDisposable {
         ? "Native N.I.N.A. Framing Assistant embedded — edits are shared with the standard Framing Assistant tab."
         : "Embedded Framing Assistant view is unavailable; use Open native tab. Framing state is still shared.";
 
+    public void Reset() {
+        suppressChanges = true;
+        try {
+            try {
+                if (framing.CancelLoadImageCommand?.CanExecute(null) == true)
+                    framing.CancelLoadImageCommand.Execute(null);
+            } catch { }
+
+            if (framing.HorizontalPanels != 1) framing.HorizontalPanels = 1;
+            if (framing.VerticalPanels != 1) framing.VerticalPanels = 1;
+
+            framing.ImageParameter = null!;
+            framing.Rectangle = null!;
+            framing.CameraRectangles?.Clear();
+            framing.DeepSkyObjectSearchVM?.SetTargetNameWithoutSearch(string.Empty);
+            framing.DSO = new DeepSkyObject(
+                string.Empty,
+                new Coordinates(0, 0, Epoch.J2000, Coordinates.RAType.Hours),
+                profileService.ActiveProfile.AstrometrySettings.Horizon);
+
+            WireRectangleCollection();
+        } finally {
+            suppressChanges = false;
+        }
+    }
+
     public async Task<bool> LoadTargetAsync(
         string targetName,
         double raHours,
