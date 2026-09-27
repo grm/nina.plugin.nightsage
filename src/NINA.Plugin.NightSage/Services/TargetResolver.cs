@@ -22,7 +22,7 @@ public sealed class SesameTargetResolver : ITargetResolver {
     public async Task<ResolvedTarget> ResolveAsync(string query, CancellationToken cancellationToken) {
         if (string.IsNullOrWhiteSpace(query)) throw new ArgumentException("Target name is required.", nameof(query));
 
-        var url = "https://cds.unistra.fr/cgi-bin/nph-sesame/-oxp/SNV?" + Uri.EscapeDataString(query.Trim());
+        var url = "https://cds.unistra.fr/cgi-bin/nph-sesame/-oxp/NSV?" + Uri.EscapeDataString(query.Trim());
         using var response = await http.GetAsync(url, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var xml = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
