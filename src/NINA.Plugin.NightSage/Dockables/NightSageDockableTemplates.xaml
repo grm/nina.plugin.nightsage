@@ -174,11 +174,11 @@
                             <TextBlock Margin="0,2,0,0" TextWrapping="Wrap" Text="{Binding CurrentPlan.FilterIntegrationSummary}"/>
                             <DockPanel Margin="0,5,0,0">
                                 <TextBlock DockPanel.Dock="Left" Text="Integration per panel"/>
-                                <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold" Text="{Binding CurrentPlan.IntegrationPerPanelDisplay}"/>
+                                <TextBlock DockPanel.Dock="Right" Margin="12,0,0,0" FontWeight="SemiBold" Text="{Binding CurrentPlan.IntegrationPerPanelDisplay}"/>
                             </DockPanel>
                             <DockPanel Margin="0,4,0,0">
                                 <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Project total"/>
-                                <TextBlock DockPanel.Dock="Right" FontWeight="Bold" Text="{Binding CurrentPlan.TotalIntegrationDisplay}"/>
+                                <TextBlock DockPanel.Dock="Right" Margin="12,0,0,0" FontWeight="Bold" Text="{Binding CurrentPlan.TotalIntegrationDisplay}"/>
                             </DockPanel>
                         </StackPanel>
                     </Border>
