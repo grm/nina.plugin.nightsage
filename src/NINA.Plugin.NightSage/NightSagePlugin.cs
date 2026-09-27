@@ -68,7 +68,7 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
         ProviderTestStatus = "Testing…";
         try {
             var provider = LlmProviderFactory.Create(store.Load());
-            var result = await provider.CompleteJsonAsync("Return JSON only.", "Return exactly {"ok":true}.", CancellationToken.None);
+            var result = await provider.CompleteJsonAsync("Return JSON only.", """Return exactly {"ok":true}.""", CancellationToken.None);
             using var doc = JsonPayload.ParseObject(result);
             var ok = doc.RootElement.TryGetProperty("ok", out var p) && p.ValueKind == System.Text.Json.JsonValueKind.True;
             ProviderTestStatus = ok ? "✓ Provider connected" : "⚠ Connected, unexpected response";
