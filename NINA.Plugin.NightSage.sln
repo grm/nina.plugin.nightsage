@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NINA.Plugin.NightSage", "src\NINA.Plugin.NightSage\NINA.Plugin.NightSage.csproj", "{79031922-9C5A-4A0C-A1ED-90DE361C0D74}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NINA.Plugin.NightSage.Tests", "tests\NINA.Plugin.NightSage.Tests\NINA.Plugin.NightSage.Tests.csproj", "{B6B9E48F-E071-4E91-B53A-20C4A3923034}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{79031922-9C5A-4A0C-A1ED-90DE361C0D74}.Debug|x64.ActiveCfg = Debug|x64
+		{79031922-9C5A-4A0C-A1ED-90DE361C0D74}.Debug|x64.Build.0 = Debug|x64
+		{79031922-9C5A-4A0C-A1ED-90DE361C0D74}.Release|x64.ActiveCfg = Release|x64
+		{79031922-9C5A-4A0C-A1ED-90DE361C0D74}.Release|x64.Build.0 = Release|x64
+		{B6B9E48F-E071-4E91-B53A-20C4A3923034}.Debug|x64.ActiveCfg = Debug|x64
+		{B6B9E48F-E071-4E91-B53A-20C4A3923034}.Debug|x64.Build.0 = Debug|x64
+		{B6B9E48F-E071-4E91-B53A-20C4A3923034}.Release|x64.ActiveCfg = Release|x64
+		{B6B9E48F-E071-4E91-B53A-20C4A3923034}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+EndGlobal
