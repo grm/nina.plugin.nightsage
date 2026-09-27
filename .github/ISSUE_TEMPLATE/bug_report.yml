@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible NightSage problem
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping test NightSage. Do **not** include API keys.
+  - type: input
+    id: nina
+    attributes:
+      label: N.I.N.A. version
+      placeholder: "3.2.x"
+    validations:
+      required: true
+  - type: input
+    id: nightsage
+    attributes:
+      label: NightSage version
+      placeholder: "0.2.0-beta.1"
+    validations:
+      required: true
+  - type: input
+    id: ts
+    attributes:
+      label: Target Scheduler version
+      description: Leave blank if unrelated.
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model
+      description: Never include your API key.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log excerpt
+      description: Remove secrets/private information first.
