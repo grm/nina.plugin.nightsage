@@ -16,8 +16,15 @@ public sealed class NightSageSettings {
     public bool ActivateCreatedProjects { get; set; } = false;
     public double MinimumAltitudeDegrees { get; set; } = 30;
     public int DiscoveryDays { get; set; } = 7;
-    public int MaxDiscoveryCandidates { get; set; } = 5;
+    public int DiscoveryResultLimit { get; set; } = 12;
     public bool IncludeExistingTargets { get; set; } = true;
+
+    public bool DiscoverEmissionNebulae { get; set; } = true;
+    public bool DiscoverReflectionDarkNebulae { get; set; } = true;
+    public bool DiscoverGalaxies { get; set; } = true;
+    public bool DiscoverPlanetaryNebulae { get; set; } = true;
+    public bool DiscoverSnrWrShells { get; set; } = true;
+    public bool DiscoverClustersStarFields { get; set; } = true;
 }
 
 public sealed class NightSageSettingsStore {

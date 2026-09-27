@@ -8,10 +8,8 @@ using IntegrationAmbitionEnum = NINA.Plugin.NightSage.Models.IntegrationAmbition
 using NINA.Plugin.NightSage.Providers;
 using NINA.Plugin.NightSage.Services;
 using NINA.Profile.Interfaces;
-using NINA.Equipment.Interfaces.ViewModel;
 using NINA.WPF.Base.ViewModel;
 using System.Collections.ObjectModel;
-using System.ComponentModel.Composition;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
@@ -20,9 +18,9 @@ using System.Windows.Threading;
 
 namespace NINA.Plugin.NightSage.Dockables;
 
-[Export(typeof(IDockableVM))]
-public sealed class NightSageDockable : DockableVM {
+public sealed class NightSageDockable : DockableVM, IDisposable {
     private readonly EquipmentContextService equipment;
+    private readonly IProfileService profileService;
     private readonly PlanningService planner = new();
     private readonly DiscoveryService discovery = new();
     private readonly TargetSchedulerReflectionAdapter targetScheduler = new();
@@ -36,6 +34,7 @@ public sealed class NightSageDockable : DockableVM {
     private readonly AsyncRelayCommand createCommand;
 
     private bool busy;
+    private bool disposed;
     private string targetQuery = "";
     private string userPreferences = "";
     private string setupSummary = "";
@@ -46,8 +45,8 @@ public sealed class NightSageDockable : DockableVM {
     private AutonomyModeEnum autonomyMode;
     private IntegrationAmbitionEnum integrationAmbition;
 
-    [ImportingConstructor]
     public NightSageDockable(IProfileService profileService, ICameraMediator cameraMediator) : base(profileService) {
+        this.profileService = profileService;
         equipment = new EquipmentContextService(profileService, cameraMediator);
         var dict = new ResourceDictionary { Source = new Uri("NINA.Plugin.NightSage;component/Dockables/NightSageDockableTemplates.xaml", UriKind.RelativeOrAbsolute) };
         ImageGeometry = (GeometryGroup)dict["NightSage_Icon"];
@@ -91,7 +90,12 @@ public sealed class NightSageDockable : DockableVM {
 
     public AutonomyModeEnum AutonomyMode {
         get => autonomyMode;
-        set { autonomyMode = value; var s = settingsStore.Load(); s.AutonomyMode = value; settingsStore.Save(s); RaisePropertyChanged(); }
+        set {
+            if (autonomyMode == value) return;
+            autonomyMode = value;
+            var s = settingsStore.Load(); s.AutonomyMode = value; settingsStore.Save(s);
+            RaisePropertyChanged();
+        }
     }
 
     public IntegrationAmbitionEnum IntegrationAmbition {
@@ -100,13 +104,49 @@ public sealed class NightSageDockable : DockableVM {
             if (integrationAmbition == value) return;
             integrationAmbition = value;
             var s = settingsStore.Load(); s.IntegrationAmbition = value; settingsStore.Save(s);
-            ClearPlan();
-            Candidates.Clear();
-            SelectedCandidate = null;
+            ClearPlanAndDiscovery();
             Status = $"Integration ambition: {value}. Run discovery or analyze a target.";
             RaisePropertyChanged();
             RaiseCommands();
         }
+    }
+
+    public int DiscoveryResultLimit {
+        get => settingsStore.Load().DiscoveryResultLimit;
+        set {
+            var s = settingsStore.Load();
+            var normalized = Math.Clamp(value, 1, 30);
+            if (s.DiscoveryResultLimit == normalized) return;
+            s.DiscoveryResultLimit = normalized;
+            settingsStore.Save(s);
+            ClearPlanAndDiscovery();
+            RaisePropertyChanged();
+        }
+    }
+
+    public bool DiscoverEmissionNebulae {
+        get => settingsStore.Load().DiscoverEmissionNebulae;
+        set => UpdateDiscoveryOption(nameof(DiscoverEmissionNebulae), s => s.DiscoverEmissionNebulae = value);
+    }
+    public bool DiscoverReflectionDarkNebulae {
+        get => settingsStore.Load().DiscoverReflectionDarkNebulae;
+        set => UpdateDiscoveryOption(nameof(DiscoverReflectionDarkNebulae), s => s.DiscoverReflectionDarkNebulae = value);
+    }
+    public bool DiscoverGalaxies {
+        get => settingsStore.Load().DiscoverGalaxies;
+        set => UpdateDiscoveryOption(nameof(DiscoverGalaxies), s => s.DiscoverGalaxies = value);
+    }
+    public bool DiscoverPlanetaryNebulae {
+        get => settingsStore.Load().DiscoverPlanetaryNebulae;
+        set => UpdateDiscoveryOption(nameof(DiscoverPlanetaryNebulae), s => s.DiscoverPlanetaryNebulae = value);
+    }
+    public bool DiscoverSnrWrShells {
+        get => settingsStore.Load().DiscoverSnrWrShells;
+        set => UpdateDiscoveryOption(nameof(DiscoverSnrWrShells), s => s.DiscoverSnrWrShells = value);
+    }
+    public bool DiscoverClustersStarFields {
+        get => settingsStore.Load().DiscoverClustersStarFields;
+        set => UpdateDiscoveryOption(nameof(DiscoverClustersStarFields), s => s.DiscoverClustersStarFields = value);
     }
 
     public ImagingPlan? CurrentPlan {
@@ -144,6 +184,21 @@ public sealed class NightSageDockable : DockableVM {
         TemplateChoices.Clear();
     }
 
+    private void ClearPlanAndDiscovery() {
+        ClearPlan();
+        Candidates.Clear();
+        SelectedCandidate = null;
+    }
+
+    private void UpdateDiscoveryOption(string propertyName, Action<NightSageSettings> update) {
+        var s = settingsStore.Load();
+        update(s);
+        settingsStore.Save(s);
+        ClearPlanAndDiscovery();
+        RaisePropertyChanged(propertyName);
+        RaiseCommands();
+    }
+
     private Task RefreshAsync() => RefreshWithoutBusyAsync();
 
     private Task RefreshWithoutBusyAsync() {
@@ -175,15 +230,25 @@ public sealed class NightSageDockable : DockableVM {
     }
 
     private async Task DiscoverAsync() {
-        ClearPlan();
-        Candidates.Clear();
-        SelectedCandidate = null;
-        Status = $"Finding {IntegrationAmbition} targets for the next 7 days…";
-        var setup = equipment.Capture(); SetupSummary = setup.Summary;
+        ClearPlanAndDiscovery();
         var settings = settingsStore.Load();
+        var categories = DiscoveryCategoryCatalog.SelectedKeys(settings);
+        if (categories.Count == 0) throw new InvalidOperationException("Select at least one target type before running Find targets.");
+
+        Status = $"Finding {IntegrationAmbition} targets for the next {Math.Clamp(settings.DiscoveryDays, 1, 14)} days…";
+        var setup = equipment.Capture();
+        SetupSummary = setup.Summary;
         var existing = settings.IncludeExistingTargets ? targetScheduler.GetExistingTargets(setup.ProfileId) : Array.Empty<ExistingTargetInfo>();
         var provider = LlmProviderFactory.Create(settings);
-        var result = await discovery.DiscoverAsync(setup, existing, provider, Math.Clamp(settings.DiscoveryDays, 1, 14), settings.MinimumAltitudeDegrees, IntegrationAmbition, CancellationToken.None);
+        var result = await discovery.DiscoverAsync(
+            setup, existing, provider,
+            Math.Clamp(settings.DiscoveryDays, 1, 14),
+            settings.MinimumAltitudeDegrees,
+            IntegrationAmbition,
+            categories,
+            Math.Clamp(settings.DiscoveryResultLimit, 1, 30),
+            CancellationToken.None);
+
         foreach (var c in result.Candidates) Candidates.Add(c);
         SelectedCandidate = Candidates.FirstOrDefault();
         Status = Candidates.Count == 0 ? "No candidate survived deterministic visibility/resolution checks." : $"{Candidates.Count} candidate(s) ready for {IntegrationAmbition}.";
@@ -260,5 +325,13 @@ public sealed class NightSageDockable : DockableVM {
     private void RaiseCommands() {
         refreshCommand?.RaiseCanExecuteChanged(); analyzeCommand?.RaiseCanExecuteChanged(); discoverCommand?.RaiseCanExecuteChanged();
         planSelectedCommand?.RaiseCanExecuteChanged(); createCommand?.RaiseCanExecuteChanged();
+    }
+
+    public void Dispose() {
+        if (disposed) return;
+        disposed = true;
+        targetSchedulerDetectionTimer.Stop();
+        targetSchedulerDetectionTimer.Tick -= TargetSchedulerDetectionTimer_Tick;
+        profileService.ProfileChanged -= ProfileService_ProfileChanged;
     }
 }

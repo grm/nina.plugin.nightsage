@@ -1,10 +1,13 @@
 using NINA.Core.Utility;
 using NINA.Core.Utility.Notification;
+using NINA.Equipment.Interfaces.Mediator;
 using NINA.Plugin;
 using NINA.Plugin.Interfaces;
+using NINA.Plugin.NightSage.Dockables;
 using NINA.Plugin.NightSage.Infrastructure;
 using NINA.Plugin.NightSage.Models;
 using NINA.Plugin.NightSage.Providers;
+using NINA.Profile.Interfaces;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
 using System.Runtime.CompilerServices;
@@ -19,12 +22,14 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
     private string providerTestStatus = "";
 
     [ImportingConstructor]
-    public NightSagePlugin() {
+    public NightSagePlugin(IProfileService profileService, ICameraMediator cameraMediator) {
         settings = store.Load();
+        Workspace = new NightSageDockable(profileService, cameraMediator);
         TestProviderCommand = new AsyncRelayCommand(TestProviderAsync);
         Logger.Info("NightSage: plugin initialized");
     }
 
+    public NightSageDockable Workspace { get; }
     public IReadOnlyList<string> Providers { get; } = new[] { "OpenAI", "Anthropic", "Google Gemini", "OpenAI-compatible" };
     public IReadOnlyList<AutonomyMode> AutonomyModes { get; } = Enum.GetValues<AutonomyMode>();
 
@@ -63,7 +68,7 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
         ProviderTestStatus = "Testing…";
         try {
             var provider = LlmProviderFactory.Create(store.Load());
-            var result = await provider.CompleteJsonAsync("Return JSON only.", "Return exactly {\"ok\":true}.", CancellationToken.None);
+            var result = await provider.CompleteJsonAsync("Return JSON only.", "Return exactly {"ok":true}.", CancellationToken.None);
             using var doc = JsonPayload.ParseObject(result);
             var ok = doc.RootElement.TryGetProperty("ok", out var p) && p.ValueKind == System.Text.Json.JsonValueKind.True;
             ProviderTestStatus = ok ? "✓ Provider connected" : "⚠ Connected, unexpected response";
@@ -79,6 +84,7 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
     private static bool IsKnownDefault(string model) => model is "gpt-5.6-terra" or "claude-sonnet-4-5" or "gemini-2.5-pro";
 
     public override Task Teardown() {
+        Workspace.Dispose();
         Logger.Info("NightSage: plugin teardown");
         return base.Teardown();
     }

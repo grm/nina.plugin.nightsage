@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.1-alpha.5 — 2026-09-27
+
+Dedicated plugin workspace and configurable discovery.
+
+- NightSage planner moved from the Imaging dock to the NightSage plugin page, freeing the Imaging workspace.
+- The plugin page now uses the available width instead of a narrow dock.
+- Settings are collapsed by default.
+- Planner sections are collapsible.
+- Discovery target types are individually selectable: Emission/HII, Reflection/Dark, Galaxy, Planetary Nebula, SNR/WR shell, Cluster/Star field.
+- Discovery result count is configurable from 1 to 30, with 12 as the default for new settings.
+- Find targets can now return multiple alternatives per category rather than being hard-limited to one result per category.
+- Discovery preserves category diversity first, then fills remaining slots with the strongest alternatives.
+- Existing integration ambition behavior (Quick/Balanced/Deep) applies to all returned candidates.
+- The Imaging tab no longer receives a NightSage IDockableVM export.
+
 ## 0.1.1-alpha.4 — 2026-09-27
 
 Integration ambition and discovery polish.
@@ -41,17 +56,13 @@ UI cleanup and provider resilience.
 
 Template-aware planning and first UI polish pass.
 
-- Existing Target Scheduler Exposure Templates are now planning inputs and the technical source of truth.
+- Existing Target Scheduler Exposure Templates are planning inputs and the technical source of truth.
 - Exact same-filter/same-duration templates are reused unchanged.
-- Special exposure durations (HDR, bright cores/stars, etc.) can be derived from an existing same-filter template.
-- Derived templates preserve gain, offset, binning, readout mode, twilight, dithering, humidity and all moon-avoidance settings; only exposure duration changes.
+- Special exposure durations can be derived from an existing same-filter template.
+- Derived templates preserve technical settings; only exposure duration changes.
 - NightSage asks before creating any missing/derived template.
-- Every exposure row exposes the proposed Target Scheduler template in a selector; the user can choose another compatible base before creation.
-- Exposure Plans inherit their duration from the selected/created template instead of overriding it.
-- Multiple exposure durations for the same filter are retained, enabling HDR plans.
-- Target Scheduler detection refreshes automatically while waiting for the assembly to load.
-- Discovery list follows the N.I.N.A. theme and has clearer selection guidance.
-- Added explicit labels/help for target input, optional planning instructions, autonomy mode and Target Scheduler option switches.
+- User-controlled template mapping and HDR multi-duration plans.
+- Automatic Target Scheduler detection.
 
 ## 0.1.0-alpha.1 — 2026-09-27
 

@@ -20,7 +20,21 @@ public sealed class DiscoveryService {
         int days,
         double minimumAltitude,
         CancellationToken cancellationToken) =>
-        DiscoverAsync(setup, existingTargets, provider, days, minimumAltitude, IntegrationAmbition.Balanced, cancellationToken);
+        DiscoverAsync(
+            setup, existingTargets, provider, days, minimumAltitude, IntegrationAmbition.Balanced,
+            DiscoveryCategoryCatalog.All.Select(x => x.Key).ToArray(), 12, cancellationToken);
+
+    public Task<DiscoveryResult> DiscoverAsync(
+        SetupContext setup,
+        IReadOnlyCollection<ExistingTargetInfo> existingTargets,
+        ILLMProvider provider,
+        int days,
+        double minimumAltitude,
+        IntegrationAmbition ambition,
+        CancellationToken cancellationToken) =>
+        DiscoverAsync(
+            setup, existingTargets, provider, days, minimumAltitude, ambition,
+            DiscoveryCategoryCatalog.All.Select(x => x.Key).ToArray(), 12, cancellationToken);
 
     public async Task<DiscoveryResult> DiscoverAsync(
         SetupContext setup,
@@ -29,27 +43,51 @@ public sealed class DiscoveryService {
         int days,
         double minimumAltitude,
         IntegrationAmbition ambition,
+        IReadOnlyCollection<string> selectedCategoryKeys,
+        int resultLimit,
         CancellationToken cancellationToken) {
+
+        var selectedCategories = selectedCategoryKeys
+            .Select(DiscoveryCategoryCatalog.Find)
+            .Where(x => x != null)
+            .Cast<DiscoveryCategoryDefinition>()
+            .DistinctBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (selectedCategories.Count == 0)
+            throw new InvalidOperationException("Select at least one target type before running discovery.");
+
+        resultLimit = Math.Clamp(resultLimit, 1, 30);
 
         var system = """
 You are the target-discovery component of NightSage, a N.I.N.A. astrophotography plugin.
 Return JSON only, with no Markdown.
 Recommend targets that are genuinely plausible from the supplied site during the next seven days and appropriate to the exact field of view and filters.
-The plugin will independently resolve coordinates and calculate visibility, so use well-known resolvable catalog names (Messier, NGC, IC, Sharpless, Abell, etc.).
-Return one candidate for each requested category. Do not repeat the same physical object in multiple categories.
+The plugin independently resolves coordinates and calculates visibility, so use well-known resolvable catalog names (Messier, NGC, IC, Sharpless, Abell, etc.).
+Only return the requested category keys.
+Do not repeat the same physical object under aliases or in multiple categories.
 Prefer unfinished existing Target Scheduler targets when they are a strong fit, but do not force them.
 Estimate a realistic total integration time for the intended result with this exact setup.
 The integration ambition is a tolerance for project length, not a duration bucket. Never make a target rank higher merely because it needs more hours.
+Return multiple alternatives when the result limit allows it. Cover the selected categories as evenly as practical, then use remaining slots for the strongest additional targets.
 """;
 
-        var prompt = BuildPrompt(setup, existingTargets, days, minimumAltitude, ambition);
+        var prompt = BuildPrompt(setup, existingTargets, days, minimumAltitude, ambition, selectedCategories, resultLimit);
         var raw = await provider.CompleteJsonAsync(system, prompt, cancellationToken).ConfigureAwait(false);
         using var doc = JsonPayload.ParseObject(raw);
 
+        var allowedKeys = selectedCategories.Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var candidates = new List<TargetCandidate>();
+
         if (doc.RootElement.TryGetProperty("candidates", out var items) && items.ValueKind == JsonValueKind.Array) {
             foreach (var item in items.EnumerateArray()) {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                var categoryKey = JsonPayload.String(item, "categoryKey").Trim();
+                if (!allowedKeys.Contains(categoryKey)) continue;
+                var category = DiscoveryCategoryCatalog.Find(categoryKey);
+                if (category == null) continue;
+
                 var name = JsonPayload.String(item, "name").Trim();
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
@@ -61,7 +99,7 @@ The integration ambition is a tolerance for project length, not a duration bucke
                 }
 
                 var candidate = new TargetCandidate {
-                    Category = JsonPayload.String(item, "category", "Other"),
+                    Category = category.DisplayName,
                     Name = string.IsNullOrWhiteSpace(resolved.CanonicalName) ? name : resolved.CanonicalName,
                     TargetType = JsonPayload.String(item, "targetType", "other"),
                     RaHours = resolved.RaHours,
@@ -88,12 +126,32 @@ The integration ambition is a tolerance for project length, not a duration bucke
             }
         }
 
-        var selected = candidates
+        var valid = candidates
             .Where(x => x.Visibility.DarkHoursAboveMinimum >= 0.5)
-            .GroupBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => NormalizeName(x.Name))
             .Select(g => g.OrderByDescending(x => x.TotalScore).First())
-            .OrderByDescending(x => x.TotalScore)
             .ToList();
+
+        var selected = new List<TargetCandidate>();
+
+        // First pass: preserve category diversity.
+        foreach (var best in valid
+                     .GroupBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+                     .Select(g => g.OrderByDescending(x => x.TotalScore).First())
+                     .OrderByDescending(x => x.TotalScore)) {
+            if (selected.Count >= resultLimit) break;
+            selected.Add(best);
+        }
+
+        // Second pass: fill remaining slots with the strongest alternatives.
+        foreach (var candidate in valid
+                     .Where(x => !selected.Contains(x))
+                     .OrderByDescending(x => x.TotalScore)) {
+            if (selected.Count >= resultLimit) break;
+            selected.Add(candidate);
+        }
+
+        selected = selected.OrderByDescending(x => x.TotalScore).ToList();
 
         var result = new DiscoveryResult();
         foreach (var c in selected) result.Candidates.Add(c);
@@ -105,7 +163,9 @@ The integration ambition is a tolerance for project length, not a duration bucke
         IReadOnlyCollection<ExistingTargetInfo> existingTargets,
         int days,
         double minimumAltitude,
-        IntegrationAmbition ambition) {
+        IntegrationAmbition ambition,
+        IReadOnlyList<DiscoveryCategoryDefinition> categories,
+        int resultLimit) {
 
         var existing = existingTargets.Count == 0
             ? "(none)"
@@ -113,6 +173,7 @@ The integration ambition is a tolerance for project length, not a duration bucke
                 $"- {x.TargetName} / project {x.ProjectName} / {x.PercentComplete:0}% complete / active={x.ProjectActive}"));
 
         var filters = setup.Filters.Count == 0 ? "(none; color camera/no wheel may be in use)" : string.Join(", ", setup.Filters);
+        var categoryList = string.Join("\n", categories.Select(x => $"- {x.Key}: {x.PromptName}"));
 
         return $$"""
 Current UTC date: {{DateTime.UtcNow:yyyy-MM-dd}}
@@ -120,6 +181,10 @@ Discovery horizon: next {{days}} days
 Minimum useful target altitude: {{minimumAltitude:0}} deg
 Integration ambition: {{ambition}}
 Ambition guidance: {{IntegrationAmbitionPolicy.DiscoveryGuidance(ambition)}}
+Maximum results requested: {{resultLimit}}
+
+Requested target categories:
+{{categoryList}}
 
 Site:
 - latitude {{setup.LatitudeDeg.ToString("0.####", CultureInfo.InvariantCulture)}} deg
@@ -141,8 +206,8 @@ Return exactly:
 {
   "candidates": [
     {
-      "category": "Emission nebula",
-      "name": "catalog name",
+      "categoryKey": "one exact requested category key",
+      "name": "resolvable catalog name",
       "targetType": "short type",
       "angularWidthArcmin": number,
       "angularHeightArcmin": number,
@@ -153,23 +218,19 @@ Return exactly:
   ]
 }
 
-Return exactly one object in candidates for each category:
-1. Emission nebula / HII region
-2. Reflection or dark nebula
-3. Galaxy
-4. Planetary nebula
-5. Supernova remnant / WR shell
-6. Star cluster or broadband star field
-
-Do not omit a category merely because it is not the globally best choice; give the strongest realistic candidate for that category.
-Remember: shorter targets remain eligible in Balanced and Deep. Do not stretch estimated integration to match the selected ambition.
+Return at most {{resultLimit}} candidates total.
+Try to include at least one strong candidate from every requested category when the result limit permits.
+If more slots remain, add strong alternatives from any requested category.
+Short targets remain eligible in Balanced and Deep. Do not stretch estimated integration to match the selected ambition.
 """;
     }
 
     private static bool NamesEquivalent(string a, string b) {
-        static string Normalize(string s) => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
-        var x = Normalize(a);
-        var y = Normalize(b);
+        var x = NormalizeName(a);
+        var y = NormalizeName(b);
         return x.Length > 0 && (x == y || x.Contains(y) || y.Contains(x));
     }
+
+    private static string NormalizeName(string s) =>
+        new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
 }
