@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.2-alpha.1 — 2026-09-27
+
+Embedded native framing and mosaic-aware planning.
+
+- Added a dedicated **Framing** tab inside the NightSage plugin page.
+- Embeds N.I.N.A.'s own `FramingAssistantView` dynamically and binds it to the shared `IFramingAssistantVM`; the embedded and standard Framing Assistant tabs therefore edit the same live state.
+- Added a compatibility fallback button to open the standard N.I.N.A. Framing Assistant if the embedded view is unavailable.
+- Added **Load current plan** to seed the native Framing Assistant from a NightSage plan.
+- NightSage monitors center, rotation, panel grid, overlap and camera panel coordinates. Framing edits mark the acquisition plan as stale.
+- Added **Recalculate plan** to adopt the current native framing and rebuild the acquisition strategy before Target Scheduler creation.
+- Mosaic planning now treats integration returned by the LLM as per-panel integration while Quick/Balanced/Deep applies to the total project duration.
+- Plan summaries show mosaic geometry, integration per panel and full project integration.
+- Target Scheduler creation now writes one mosaic project with one target per Framing Assistant camera rectangle, using each panel's exact RA/Dec/position angle and shared exposure plans.
+- Target Scheduler creation is disabled while framing has changed but the acquisition plan has not yet been recalculated.
+- Plugin UI reorganized into **Target & Plan / Framing / Settings** tabs; settings remain grouped in collapsible sections.
+
 ## 0.1.1-alpha.5 — 2026-09-27
 
 Dedicated plugin workspace and configurable discovery.
