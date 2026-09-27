@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace NINA.Plugin.NightSage.Providers;
 
-internal abstract class HttpLlmProvider : ILLMProvider {
+public abstract class HttpLlmProvider : ILLMProvider {
     protected readonly HttpClient Http;
     protected readonly string ApiKey;
     protected readonly string Model;
