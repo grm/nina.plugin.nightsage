@@ -1,3 +1,4 @@
+using System.Net.Http;
 using NINA.Plugin.NightSage.Infrastructure;
 
 namespace NINA.Plugin.NightSage.Providers;
