@@ -1,3 +1,4 @@
+using System.IO;
 using NINA.Plugin.NightSage.Models;
 using System.Security.Cryptography;
 using System.Text;
