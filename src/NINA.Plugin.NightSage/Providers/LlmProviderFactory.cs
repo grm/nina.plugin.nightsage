@@ -5,7 +5,7 @@ namespace NINA.Plugin.NightSage.Providers;
 
 public static class LlmProviderFactory {
     public static ILLMProvider Create(NightSageSettings settings, HttpClient? httpClient = null) {
-        var http = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+        var http = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(180) };
         var key = NightSageSettingsStore.UnprotectSecret(settings.ApiKeyProtected);
         return settings.Provider.Trim().ToLowerInvariant() switch {
             "openai" => new OpenAiProvider(http, key, settings.Model, settings.Endpoint),

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.1-alpha.2 — 2026-09-27
+
+UI cleanup and provider resilience.
+
+- Removed the extra per-row "Use existing..." text; template reuse/derivation is now shown directly inside the template selector.
+- Template selectors now offer contextual labels such as "existing" or "base → create 60s", plus an explicit "create new from plan settings" choice.
+- Refresh is a compact button aligned to the right of the NightSage title instead of filling the whole header.
+- Starting Analyze, Find targets or Build plan now clears the previous plan immediately so stale results are never shown while a new request is running.
+- LLM request timeout increased from 120s to 180s.
+- Added one automatic retry for transient HTTP failures (429/5xx) and provider timeouts.
+- Timeout errors now explicitly say the provider may be temporarily slow or rate-limited.
+
 ## 0.1.1-alpha.1 — 2026-09-27
 
 Template-aware planning and first UI polish pass.
@@ -12,19 +24,10 @@ Template-aware planning and first UI polish pass.
 - Every exposure row exposes the proposed Target Scheduler template in a selector; the user can choose another compatible base before creation.
 - Exposure Plans inherit their duration from the selected/created template instead of overriding it.
 - Multiple exposure durations for the same filter are retained, enabling HDR plans.
-- Target Scheduler detection now refreshes automatically while the plugin is waiting for the assembly to load; manual Refresh is no longer required in the normal startup path.
-- Discovery list no longer renders as a large white block and has clearer selection guidance.
+- Target Scheduler detection refreshes automatically while waiting for the assembly to load.
+- Discovery list follows the N.I.N.A. theme and has clearer selection guidance.
 - Added explicit labels/help for target input, optional planning instructions, autonomy mode and Target Scheduler option switches.
 
 ## 0.1.0-alpha.1 — 2026-09-27
 
 First test release.
-
-- Read the currently loaded N.I.N.A. profile and connected camera information.
-- Build full acquisition plans from a target name.
-- Discover and rank targets suitable for the current setup over the next seven days.
-- Deterministic validation of target coordinates, filter availability, field fit and visibility scoring.
-- OpenAI, Anthropic, Google Gemini and OpenAI-compatible provider backends.
-- Preview, Create and Autopilot modes.
-- Target Scheduler 5.9.x integration without a compile-time dependency.
-- API keys stored locally using Windows DPAPI.

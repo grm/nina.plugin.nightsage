@@ -96,7 +96,7 @@ public sealed class NightSageDockable : DockableVM {
 
     public string PlanSummary {
         get {
-            if (CurrentPlan == null) return "No plan yet.";
+            if (CurrentPlan == null) return "";
             var p = CurrentPlan; var sb = new StringBuilder();
             sb.AppendLine($"{p.TargetName} — {p.TargetType}");
             sb.AppendLine($"RA {p.RaHours:0.0000}h · Dec {p.DecDeg:+0.0000;-0.0000;0}° · rotation {p.RotationDegrees:0}°");
@@ -118,6 +118,11 @@ public sealed class NightSageDockable : DockableVM {
         finally { IsBusy = false; }
     }
 
+    private void ClearPlan() {
+        CurrentPlan = null;
+        TemplateChoices.Clear();
+    }
+
     private Task RefreshAsync() => RefreshWithoutBusyAsync();
 
     private Task RefreshWithoutBusyAsync() {
@@ -135,6 +140,7 @@ public sealed class NightSageDockable : DockableVM {
     }
 
     private async Task AnalyzeAsync() {
+        ClearPlan();
         Status = $"Resolving and planning {TargetQuery.Trim()}…";
         var setup = equipment.Capture();
         SetupSummary = setup.Summary;
@@ -148,13 +154,16 @@ public sealed class NightSageDockable : DockableVM {
     }
 
     private async Task DiscoverAsync() {
+        ClearPlan();
+        Candidates.Clear();
+        SelectedCandidate = null;
         Status = "Finding targets for the next 7 days…";
         var setup = equipment.Capture(); SetupSummary = setup.Summary;
         var settings = settingsStore.Load();
         var existing = settings.IncludeExistingTargets ? targetScheduler.GetExistingTargets(setup.ProfileId) : Array.Empty<ExistingTargetInfo>();
         var provider = LlmProviderFactory.Create(settings);
         var result = await discovery.DiscoverAsync(setup, existing, provider, Math.Clamp(settings.DiscoveryDays, 1, 14), settings.MinimumAltitudeDegrees, CancellationToken.None);
-        Candidates.Clear(); foreach (var c in result.Candidates) Candidates.Add(c);
+        foreach (var c in result.Candidates) Candidates.Add(c);
         SelectedCandidate = Candidates.FirstOrDefault();
         Status = Candidates.Count == 0 ? "No candidate survived deterministic visibility/resolution checks." : $"{Candidates.Count} candidate(s) ready.";
         if (AutonomyMode == AutonomyModeEnum.Autopilot && SelectedCandidate != null) { await PlanSelectedCoreAsync(); if (CurrentPlan != null) await CreateCurrentPlanCoreAsync(); }
@@ -165,6 +174,7 @@ public sealed class NightSageDockable : DockableVM {
     private async Task PlanSelectedCoreAsync() {
         if (SelectedCandidate == null) return;
         TargetQuery = SelectedCandidate.Name;
+        ClearPlan();
         Status = $"Building full plan for {SelectedCandidate.Name}…";
         var setup = equipment.Capture();
         var provider = LlmProviderFactory.Create(settingsStore.Load());

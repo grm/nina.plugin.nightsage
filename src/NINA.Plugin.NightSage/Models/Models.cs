@@ -105,33 +105,39 @@ public sealed class TargetSchedulerTemplateInfo {
     public bool MoonDownEnabled { get; set; }
     public int DitherEvery { get; set; }
     public double MaximumHumidity { get; set; }
-    public string DisplayLine => $"{Name} — {DefaultExposure:0.#}s · G{Gain} O{Offset} · B{Binning}";
+}
+
+public sealed class ExposureTemplateOption {
+    public TargetSchedulerTemplateInfo? Template { get; set; }
+    public string DisplayLabel { get; set; } = "";
 }
 
 public sealed class ExposureTemplateChoice : INotifyPropertyChanged {
-    private TargetSchedulerTemplateInfo? selectedTemplate;
+    private ExposureTemplateOption? selectedOption;
     public ExposureRecommendation Exposure { get; set; } = new();
-    public IReadOnlyList<TargetSchedulerTemplateInfo> CompatibleTemplates { get; set; } = Array.Empty<TargetSchedulerTemplateInfo>();
-    public TargetSchedulerTemplateInfo? SelectedTemplate {
-        get => selectedTemplate;
+    public IReadOnlyList<ExposureTemplateOption> Options { get; set; } = Array.Empty<ExposureTemplateOption>();
+    public ExposureTemplateOption? SelectedOption {
+        get => selectedOption;
         set {
-            if (ReferenceEquals(selectedTemplate, value)) return;
-            selectedTemplate = value;
+            if (ReferenceEquals(selectedOption, value)) return;
+            selectedOption = value;
             Raise();
+            Raise(nameof(SelectedTemplate));
             Raise(nameof(UsesExistingUnchanged));
             Raise(nameof(RequiresCreation));
             Raise(nameof(IsDerived));
             Raise(nameof(ActionSummary));
         }
     }
+    public TargetSchedulerTemplateInfo? SelectedTemplate => SelectedOption?.Template;
     public bool UsesExistingUnchanged => SelectedTemplate != null && Math.Abs(SelectedTemplate.DefaultExposure - Exposure.SubSeconds) < 0.01;
     public bool RequiresCreation => !UsesExistingUnchanged;
     public bool IsDerived => SelectedTemplate != null && RequiresCreation;
     public string ActionSummary => UsesExistingUnchanged
-        ? $"Use existing: {SelectedTemplate!.Name}"
+        ? $"Use existing template '{SelectedTemplate!.Name}'"
         : IsDerived
-            ? $"Clone '{SelectedTemplate!.Name}' → {Exposure.SubSeconds:0.#}s; preserve gain/offset/binning/readout/moon/twilight"
-            : $"Create new {Exposure.Filter} {Exposure.SubSeconds:0.#}s template (no same-filter base available)";
+            ? $"Create {Exposure.Filter} {Exposure.SubSeconds:0.#}s from '{SelectedTemplate!.Name}' and preserve its technical settings"
+            : $"Create a new {Exposure.Filter} {Exposure.SubSeconds:0.#}s template from the plan settings";
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Raise([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

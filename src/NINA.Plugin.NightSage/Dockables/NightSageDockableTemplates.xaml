@@ -5,10 +5,11 @@
     <DataTemplate x:Key="NINA.Plugin.NightSage.Dockables.NightSageDockable_Dockable">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="8">
-                <DockPanel Margin="0,0,0,8">
-                    <TextBlock DockPanel.Dock="Left" FontSize="17" FontWeight="SemiBold" Text="NightSage"/>
-                    <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" Padding="8,2"/>
-                </DockPanel>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" Text="NightSage"/>
+                    <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" Padding="8,2" MinWidth="70" HorizontalAlignment="Right"/>
+                </Grid>
 
                 <Border BorderThickness="1" Padding="7" Margin="0,0,0,8">
                     <StackPanel>
@@ -53,9 +54,7 @@
                         </Style>
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding DisplayLine}" TextWrapping="Wrap"/>
-                        </DataTemplate>
+                        <DataTemplate><TextBlock Text="{Binding DisplayLine}" TextWrapping="Wrap"/></DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <Button Content="Build plan for selected target" Command="{Binding PlanSelectedCommand}" Padding="10,4" HorizontalAlignment="Left"/>
@@ -69,26 +68,23 @@
 
                 <TextBlock FontWeight="SemiBold" Text="Exposure template mapping" Margin="0,2,0,2"/>
                 <TextBlock Opacity="0.72" TextWrapping="Wrap" Margin="0,0,0,5"
-                           Text="NightSage reuses an exact Target Scheduler template when possible. For a new exposure length, it proposes a same-filter template as the base. You can change that base before creation."/>
+                           Text="Each selector shows whether NightSage will use an existing template or use it as the base for a derived exposure length. You can choose another base."/>
                 <ItemsControl ItemsSource="{Binding TemplateChoices}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border BorderThickness="0,1,0,0" Padding="4,6">
                                 <Grid>
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="55"/><ColumnDefinition Width="85"/><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="SemiBold" Text="{Binding Exposure.Filter}"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Exposure.SubSeconds, StringFormat={}{0:0.#}s}"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Exposure.DesiredCount, StringFormat={}{0} frames}"/>
-                                    <ComboBox Grid.Row="0" Grid.Column="3" MinWidth="260"
-                                              ItemsSource="{Binding CompatibleTemplates}"
-                                              SelectedItem="{Binding SelectedTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              DisplayMemberPath="DisplayLine"
-                                              ToolTip="Choose which existing same-filter Target Scheduler template should be reused or used as the base."/>
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4" Margin="0,4,0,0" Opacity="0.78"
-                                               TextWrapping="Wrap" Text="{Binding ActionSummary}"/>
+                                    <TextBlock Grid.Column="0" FontWeight="SemiBold" Text="{Binding Exposure.Filter}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Exposure.SubSeconds, StringFormat={}{0:0.#}s}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Exposure.DesiredCount, StringFormat={}{0} frames}"/>
+                                    <ComboBox Grid.Column="3" MinWidth="280"
+                                              ItemsSource="{Binding Options}"
+                                              SelectedItem="{Binding SelectedOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              DisplayMemberPath="DisplayLabel"
+                                              ToolTip="Choose an existing same-filter template to reuse/use as the base, or choose creation from plan settings."/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
