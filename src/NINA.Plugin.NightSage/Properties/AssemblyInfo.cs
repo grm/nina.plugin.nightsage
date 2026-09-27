@@ -20,4 +20,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("Homepage", "https://github.com/grm/nina.plugin.nightsage")]
 [assembly: AssemblyMetadata("Tags", "AI,Planning,Target Scheduler,Automation")]
 [assembly: AssemblyMetadata("LongDescription", @"NightSage turns the active N.I.N.A. profile into an AI-assisted astrophotography planning workspace. Enter a known target to build an acquisition strategy or discover targets suited to the current setup over the next seven nights. Plans are validated against the actual equipment and can be created in Target Scheduler 5.9.x.")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("windows")]
 [assembly: ComVisible(false)]
