@@ -7,8 +7,6 @@ using NINA.WPF.Base.Interfaces.Mediator;
 using NINA.WPF.Base.Interfaces.ViewModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Reflection;
-using System.Windows;
 
 namespace NINA.Plugin.NightSage.Services;
 
@@ -32,16 +30,13 @@ public sealed class FramingAssistantIntegration : IDisposable {
 
         if (framing is INotifyPropertyChanged npc) npc.PropertyChanged += Framing_PropertyChanged;
         WireRectangleCollection();
-        EmbeddedView = TryCreateEmbeddedView();
     }
 
     public event EventHandler? FramingChanged;
 
-    public FrameworkElement? EmbeddedView { get; }
-    public bool EmbeddedAvailable => EmbeddedView != null;
-    public string EmbedStatus => EmbeddedAvailable
-        ? "Native N.I.N.A. Framing Assistant embedded — edits are shared with the standard Framing Assistant tab."
-        : "Embedded N.I.N.A. Framing Assistant view is unavailable in this build. Use the native Framing Assistant tab; NightSage still shares its state.";
+    public IFramingAssistantVM ViewModel => framing;
+    public string EmbedStatus =>
+        "Native N.I.N.A. Framing Assistant embedded — edits are shared with the standard Framing Assistant tab.";
 
     public async Task<bool> LoadTargetAsync(
         string targetName,
@@ -108,35 +103,6 @@ public sealed class FramingAssistantIntegration : IDisposable {
     }
 
     public void OpenNativeFramingAssistant() => applicationMediator.ChangeTab(ApplicationTab.FRAMINGASSISTANT);
-
-    private FrameworkElement? TryCreateEmbeddedView() {
-        try {
-            var appAssembly = AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(a => a.GetType("NINA.View.FramingAssistantView", false) != null);
-
-            var type = appAssembly?.GetType("NINA.View.FramingAssistantView", false);
-            if (type == null) {
-                Logger.Warning("NightSage: NINA.View.FramingAssistantView not found; embedded framing disabled.");
-                return null;
-            }
-
-            FrameworkElement? view = null;
-            void create() {
-                view = Activator.CreateInstance(type) as FrameworkElement;
-                if (view != null) view.DataContext = framing;
-            }
-
-            var dispatcher = Application.Current?.Dispatcher;
-            if (dispatcher != null && !dispatcher.CheckAccess()) dispatcher.Invoke(create);
-            else create();
-
-            if (view == null) Logger.Warning("NightSage: could not instantiate N.I.N.A. FramingAssistantView.");
-            return view;
-        } catch (Exception ex) {
-            Logger.Warning($"NightSage: embedded Framing Assistant unavailable: {ex.Message}");
-            return null;
-        }
-    }
 
     private void Framing_PropertyChanged(object? sender, PropertyChangedEventArgs e) {
         if (e.PropertyName == nameof(IFramingAssistantVM.CameraRectangles)) WireRectangleCollection();
