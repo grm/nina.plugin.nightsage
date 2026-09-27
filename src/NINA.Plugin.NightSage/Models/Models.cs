@@ -2,11 +2,7 @@ using System.Collections.ObjectModel;
 
 namespace NINA.Plugin.NightSage.Models;
 
-public enum AutonomyMode {
-    Preview,
-    Create,
-    Autopilot
-}
+public enum AutonomyMode { Preview, Create, Autopilot }
 
 public sealed class SetupContext {
     public string ProfileId { get; set; } = "";
@@ -62,7 +58,7 @@ public sealed class ExposureRecommendation {
     public double MoonRelaxScale { get; set; }
     public bool MoonDownEnabled { get; set; }
     public string Twilight { get; set; } = "Nighttime";
-
+    public string PreferredTemplateName { get; set; } = "";
     public string Summary => $"{Filter}: {DesiredCount} × {SubSeconds:0}s ({TotalMinutes / 60.0:0.0}h)";
 }
 
@@ -84,8 +80,44 @@ public sealed class ImagingPlan {
     public List<ExposureRecommendation> Exposures { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
     public bool IsValidated { get; set; }
-
     public string ExposureSummary => string.Join(Environment.NewLine, Exposures.Select(x => x.Summary));
+}
+
+public sealed class TargetSchedulerTemplateInfo {
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string FilterName { get; set; } = "";
+    public double DefaultExposure { get; set; }
+    public int Gain { get; set; }
+    public int Offset { get; set; }
+    public int Binning { get; set; } = 1;
+    public int ReadoutMode { get; set; }
+    public int TwilightLevel { get; set; }
+    public int MinutesOffset { get; set; }
+    public bool MoonAvoidanceEnabled { get; set; }
+    public double MoonAvoidanceSeparation { get; set; }
+    public int MoonAvoidanceWidth { get; set; }
+    public double MoonRelaxScale { get; set; }
+    public double MoonRelaxMaxAltitude { get; set; }
+    public double MoonRelaxMinAltitude { get; set; }
+    public bool MoonDownEnabled { get; set; }
+    public int DitherEvery { get; set; }
+    public double MaximumHumidity { get; set; }
+    public string DisplayLine => $"{Name} — {DefaultExposure:0.#}s · G{Gain} O{Offset} · B{Binning}";
+}
+
+public sealed class ExposureTemplateChoice {
+    public ExposureRecommendation Exposure { get; set; } = new();
+    public IReadOnlyList<TargetSchedulerTemplateInfo> CompatibleTemplates { get; set; } = Array.Empty<TargetSchedulerTemplateInfo>();
+    public TargetSchedulerTemplateInfo? SelectedTemplate { get; set; }
+    public bool UsesExistingUnchanged => SelectedTemplate != null && Math.Abs(SelectedTemplate.DefaultExposure - Exposure.SubSeconds) < 0.01;
+    public bool RequiresCreation => !UsesExistingUnchanged;
+    public bool IsDerived => SelectedTemplate != null && RequiresCreation;
+    public string ActionSummary => UsesExistingUnchanged
+        ? $"Use existing: {SelectedTemplate!.Name}"
+        : IsDerived
+            ? $"Create {Exposure.Filter} {Exposure.SubSeconds:0.#}s from '{SelectedTemplate!.Name}' (preserve technical settings)"
+            : $"Create new {Exposure.Filter} {Exposure.SubSeconds:0.#}s template (no same-filter base available)";
 }
 
 public sealed class VisibilitySummary {
@@ -109,7 +141,6 @@ public sealed class TargetCandidate {
     public double TotalScore { get; set; }
     public bool AlreadyInTargetScheduler { get; set; }
     public VisibilitySummary Visibility { get; set; } = new();
-
     public string DisplayLine => $"{Category}: {Name} — score {TotalScore:0} · max alt {Visibility.MaxAltitudeDeg:0}° · {Visibility.DarkHoursAboveMinimum:0.0}h dark/usable";
 }
 
