@@ -69,27 +69,60 @@
                 <TextBlock FontWeight="SemiBold" Text="Exposure template mapping" Margin="0,2,0,2"/>
                 <TextBlock Opacity="0.72" TextWrapping="Wrap" Margin="0,0,0,5"
                            Text="Each selector shows whether NightSage will use an existing template or use it as the base for a derived exposure length. You can choose another base."/>
+
+                <Grid Margin="4,2,4,3" Opacity="0.72">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="55"/>
+                        <ColumnDefinition Width="85"/>
+                        <ColumnDefinition Width="95"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Filter"/>
+                    <TextBlock Grid.Column="1" Text="Sub"/>
+                    <TextBlock Grid.Column="2" Text="Frames"/>
+                    <TextBlock Grid.Column="3" Text="Template"/>
+                    <TextBlock Grid.Column="4" Text="Integration" HorizontalAlignment="Right"/>
+                </Grid>
+
                 <ItemsControl ItemsSource="{Binding TemplateChoices}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border BorderThickness="0,1,0,0" Padding="4,6">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="55"/><ColumnDefinition Width="85"/><ColumnDefinition Width="95"/><ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="55"/>
+                                        <ColumnDefinition Width="85"/>
+                                        <ColumnDefinition Width="95"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="95"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" FontWeight="SemiBold" Text="{Binding Exposure.Filter}"/>
                                     <TextBlock Grid.Column="1" Text="{Binding Exposure.SubSeconds, StringFormat={}{0:0.#}s}"/>
                                     <TextBlock Grid.Column="2" Text="{Binding Exposure.DesiredCount, StringFormat={}{0} frames}"/>
-                                    <ComboBox Grid.Column="3" MinWidth="280"
+                                    <ComboBox Grid.Column="3" MinWidth="260" Margin="0,0,10,0"
                                               ItemsSource="{Binding Options}"
                                               SelectedItem="{Binding SelectedOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               DisplayMemberPath="DisplayLabel"
                                               ToolTip="Choose an existing same-filter template to reuse/use as the base, or choose creation from plan settings."/>
+                                    <TextBlock Grid.Column="4" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                               Text="{Binding Exposure.IntegrationDisplay}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <Border Margin="0,8,0,0" Padding="7" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Integration summary"/>
+                        <TextBlock Margin="0,3,0,0" TextWrapping="Wrap" Text="{Binding CurrentPlan.FilterIntegrationSummary}"/>
+                        <DockPanel Margin="0,5,0,0">
+                            <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Total integration"/>
+                            <TextBlock DockPanel.Dock="Right" FontWeight="Bold" Text="{Binding CurrentPlan.TotalIntegrationDisplay}"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
 
                 <Border Margin="0,10,0,0" Padding="6" BorderThickness="1">
                     <TextBlock TextWrapping="Wrap" Text="{Binding Status}"/>

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1-alpha.3 — 2026-09-27
+
+Integration-time visibility.
+
+- Added planned integration time at the right of every exposure row.
+- Integration is calculated from the actual Target Scheduler plan: desired frame count × sub-exposure duration.
+- Added per-filter integration totals, including correct aggregation of HDR/multi-duration rows for the same filter.
+- Added total planned integration for the full target.
+- Added compact column headers to make the exposure mapping table easier to scan.
+
 ## 0.1.1-alpha.2 — 2026-09-27
 
 UI cleanup and provider resilience.

@@ -6,6 +6,19 @@ namespace NINA.Plugin.NightSage.Models;
 
 public enum AutonomyMode { Preview, Create, Autopilot }
 
+public static class IntegrationTimeFormatter {
+    public static string FormatMinutes(double minutes) {
+        var totalSeconds = Math.Max(0, (int)Math.Round(minutes * 60.0));
+        var hours = totalSeconds / 3600;
+        var mins = (totalSeconds % 3600) / 60;
+        var seconds = totalSeconds % 60;
+
+        if (hours > 0) return seconds > 0 ? $"{hours}h {mins:00}m {seconds:00}s" : $"{hours}h {mins:00}m";
+        if (mins > 0) return seconds > 0 ? $"{mins}m {seconds:00}s" : $"{mins}m";
+        return $"{seconds}s";
+    }
+}
+
 public sealed class SetupContext {
     public string ProfileId { get; set; } = "";
     public string ProfileName { get; set; } = "";
@@ -61,7 +74,9 @@ public sealed class ExposureRecommendation {
     public bool MoonDownEnabled { get; set; }
     public string Twilight { get; set; } = "Nighttime";
     public string PreferredTemplateName { get; set; } = "";
-    public string Summary => $"{Filter}: {DesiredCount} × {SubSeconds:0}s ({TotalMinutes / 60.0:0.0}h)";
+    public double PlannedIntegrationMinutes => DesiredCount * SubSeconds / 60.0;
+    public string IntegrationDisplay => IntegrationTimeFormatter.FormatMinutes(PlannedIntegrationMinutes);
+    public string Summary => $"{Filter}: {DesiredCount} × {SubSeconds:0}s ({IntegrationDisplay})";
 }
 
 public sealed class ImagingPlan {
@@ -83,6 +98,12 @@ public sealed class ImagingPlan {
     public List<string> Warnings { get; set; } = new();
     public bool IsValidated { get; set; }
     public string ExposureSummary => string.Join(Environment.NewLine, Exposures.Select(x => x.Summary));
+    public double TotalIntegrationMinutes => Exposures.Sum(x => x.PlannedIntegrationMinutes);
+    public string TotalIntegrationDisplay => IntegrationTimeFormatter.FormatMinutes(TotalIntegrationMinutes);
+    public string FilterIntegrationSummary => string.Join("  ·  ",
+        Exposures
+            .GroupBy(x => x.Filter, StringComparer.OrdinalIgnoreCase)
+            .Select(g => $"{g.Key}: {IntegrationTimeFormatter.FormatMinutes(g.Sum(x => x.PlannedIntegrationMinutes))}"));
 }
 
 public sealed class TargetSchedulerTemplateInfo {
