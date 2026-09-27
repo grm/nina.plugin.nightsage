@@ -7,6 +7,8 @@ using NINA.WPF.Base.Interfaces.Mediator;
 using NINA.WPF.Base.Interfaces.ViewModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Reflection;
+using System.Windows;
 
 namespace NINA.Plugin.NightSage.Services;
 
@@ -30,13 +32,17 @@ public sealed class FramingAssistantIntegration : IDisposable {
 
         if (framing is INotifyPropertyChanged npc) npc.PropertyChanged += Framing_PropertyChanged;
         WireRectangleCollection();
+        EmbeddedTemplate = TryCreateEmbeddedTemplate();
     }
 
     public event EventHandler? FramingChanged;
 
     public IFramingAssistantVM ViewModel => framing;
-    public string EmbedStatus =>
-        "Native N.I.N.A. Framing Assistant embedded — edits are shared with the standard Framing Assistant tab.";
+    public DataTemplate? EmbeddedTemplate { get; }
+    public bool EmbeddedAvailable => EmbeddedTemplate != null;
+    public string EmbedStatus => EmbeddedAvailable
+        ? "Native N.I.N.A. Framing Assistant embedded — edits are shared with the standard Framing Assistant tab."
+        : "Embedded Framing Assistant view is unavailable; use Open native tab. Framing state is still shared.";
 
     public async Task<bool> LoadTargetAsync(
         string targetName,
@@ -103,6 +109,27 @@ public sealed class FramingAssistantIntegration : IDisposable {
     }
 
     public void OpenNativeFramingAssistant() => applicationMediator.ChangeTab(ApplicationTab.FRAMINGASSISTANT);
+
+    private static DataTemplate? TryCreateEmbeddedTemplate() {
+        try {
+            var type = AppDomain.CurrentDomain.GetAssemblies()
+                .Select(a => a.GetType("NINA.View.FramingAssistantView", false))
+                .FirstOrDefault(t => t != null);
+
+            if (type == null) {
+                Logger.Warning("NightSage: NINA.View.FramingAssistantView type not found; embedded framing disabled.");
+                return null;
+            }
+
+#pragma warning disable CS0618
+            var factory = new FrameworkElementFactory(type);
+            return new DataTemplate { VisualTree = factory };
+#pragma warning restore CS0618
+        } catch (Exception ex) {
+            Logger.Warning($"NightSage: could not prepare embedded Framing Assistant template: {ex.Message}");
+            return null;
+        }
+    }
 
     private void Framing_PropertyChanged(object? sender, PropertyChangedEventArgs e) {
         if (e.PropertyName == nameof(IFramingAssistantVM.CameraRectangles)) WireRectangleCollection();
