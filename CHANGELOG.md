@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2-alpha.2 — 2026-09-27
+
+Startup crash hotfix for embedded Framing Assistant.
+
+- Fixed an unhandled `InvalidCastException` during N.I.N.A. startup caused by constructing `FramingAssistantView` before it had a Window ancestor.
+- Removed eager/reflection-based Framing Assistant view construction from the NightSage plugin constructor.
+- The native `FramingAssistantView` is now materialized by NightSage XAML inside the live N.I.N.A. visual tree and receives the shared `IFramingAssistantVM` as its DataContext.
+- Framing state sharing, change detection, recalculation and Target Scheduler mosaic creation remain unchanged.
+
 ## 0.1.2-alpha.1 — 2026-09-27
 
 Embedded native framing and mosaic-aware planning.
