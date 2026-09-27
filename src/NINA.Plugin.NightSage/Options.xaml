@@ -1,8 +1,7 @@
 <ResourceDictionary
     x:Class="NINA.Plugin.NightSage.Options"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:nina="clr-namespace:NINA.View;assembly=NINA">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="/NINA.Plugin.NightSage;component/Dockables/NightSageDockableTemplates.xaml"/>
     </ResourceDictionary.MergedDictionaries>
@@ -55,9 +54,10 @@
                                    Text="Use the native controls below to choose the survey/catalog source, center, rotation, panel grid and overlap. Edits made here or in N.I.N.A.'s normal Framing Assistant are shared immediately." />
 
                         <Border Grid.Row="2" BorderThickness="1" Padding="2" MinHeight="620">
-                            <nina:FramingAssistantView DataContext="{Binding NativeFramingViewModel}"
-                                                       HorizontalAlignment="Stretch"
-                                                       VerticalAlignment="Stretch"/>
+                            <ContentControl Content="{Binding NativeFramingViewModel}"
+                                            ContentTemplate="{Binding NativeFramingTemplate}"
+                                            HorizontalContentAlignment="Stretch"
+                                            VerticalContentAlignment="Stretch"/>
                         </Border>
                     </Grid>
                 </TabItem>
