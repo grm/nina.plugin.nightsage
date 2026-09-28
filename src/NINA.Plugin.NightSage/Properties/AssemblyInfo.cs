@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 [assembly: Guid("D83EE60E-7628-4E43-B7A2-B94D7F2B9F9A")]
 [assembly: AssemblyTitle("NightSage")]
-[assembly: AssemblyDescription("AI target discovery and imaging planner for N.I.N.A.")]
+[assembly: AssemblyDescription("AI target discovery, native framing, mosaics and acquisition planning for N.I.N.A.")]
 [assembly: AssemblyCompany("grm")]
 [assembly: AssemblyProduct("NightSage")]
 [assembly: AssemblyCopyright("Copyright © 2026")]
