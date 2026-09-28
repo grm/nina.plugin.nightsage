@@ -10,6 +10,8 @@ NightSage turns the **currently loaded N.I.N.A. profile** into a planning worksp
 
 NightSage is a community plugin and is not part of N.I.N.A. core.
 
+![NightSage plan preview](docs/images/plan-preview.jpg)
+
 ## What NightSage does
 
 - **Discover targets** for the next seven nights using the active telescope, camera, field of view, filters, observing site, visibility and selected integration ambition.
@@ -104,6 +106,8 @@ Creation of missing/derived templates requires confirmation.
 
 The Framing tab is the native N.I.N.A. Framing Assistant embedded in NightSage. The embedded view and N.I.N.A.'s normal Framing Assistant tab share the same live state.
 
+![NightSage embedded native Framing Assistant with a 2×2 mosaic](docs/images/framing-mosaic.jpg)
+
 For a mosaic, NightSage reads the actual N.I.N.A. camera rectangles. After **Recalculate plan**:
 
 - exposure totals are displayed **per panel**;
@@ -144,6 +148,7 @@ Review the plan before acquisition—especially on remote or unattended systems.
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
+- [Public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md)
 
 ## Development
 

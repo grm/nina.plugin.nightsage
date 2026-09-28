@@ -20,6 +20,8 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("Repository", "https://github.com/grm/nina.plugin.nightsage")]
 [assembly: AssemblyMetadata("Homepage", "https://github.com/grm/nina.plugin.nightsage")]
 [assembly: AssemblyMetadata("ChangelogURL", "https://github.com/grm/nina.plugin.nightsage/blob/main/CHANGELOG.md")]
+[assembly: AssemblyMetadata("ScreenshotURL", "https://raw.githubusercontent.com/grm/nina.plugin.nightsage/main/docs/images/plan-preview.jpg")]
+[assembly: AssemblyMetadata("AltScreenshotURL", "https://raw.githubusercontent.com/grm/nina.plugin.nightsage/main/docs/images/framing-mosaic.jpg")]
 [assembly: AssemblyMetadata("Tags", "AI,Planning,Framing,Mosaic,Target Scheduler,Automation")]
 [assembly: AssemblyMetadata("LongDescription", @"NightSage discovers targets for the active N.I.N.A. setup, builds validated acquisition plans, embeds the native N.I.N.A. Framing Assistant for composition and mosaics, and creates Target Scheduler projects while reusing existing exposure templates as the technical source of truth.")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("windows")]
