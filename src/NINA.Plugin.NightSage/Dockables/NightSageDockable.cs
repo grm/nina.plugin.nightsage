@@ -41,6 +41,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
 
     private bool busy;
     private bool discovering;
+    private bool planning;
     private bool disposed;
     private string targetQuery = "";
     private string userPreferences = "";
@@ -140,6 +141,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     public string Status { get => status; private set { status = value; RaisePropertyChanged(); } }
     public bool IsBusy { get => busy; private set { busy = value; RaisePropertyChanged(); RaiseCommands(); } }
     public bool IsDiscovering { get => discovering; private set { discovering = value; RaisePropertyChanged(); } }
+    public bool IsPlanning { get => planning; private set { planning = value; RaisePropertyChanged(); } }
 
     public AutonomyModeEnum AutonomyMode {
         get => autonomyMode;
@@ -349,20 +351,25 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     }
 
     private async Task AnalyzeAsync() {
-        framingIntegration.Reset();
-        ClearPlan();
-        Status = $"Resolving and planning {TargetQuery.Trim()}…";
-        var setup = equipment.Capture();
-        SetupSummary = setup.Summary;
-        TargetSchedulerStatus = targetScheduler.Status;
-        var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
-        var provider = LlmProviderFactory.Create(settingsStore.Load());
-        CurrentPlan = await planner.BuildPlanAsync(TargetQuery.Trim(), UserPreferences, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
-        ResetFramingAssociation();
-        RebuildTemplateChoices(setup);
-        Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}. Open Framing to choose the composition.";
-        if (AutonomyMode is AutonomyModeEnum.Create or AutonomyModeEnum.Autopilot)
-            await CreateCurrentPlanCoreAsync();
+        IsPlanning = true;
+        try {
+            framingIntegration.Reset();
+            ClearPlan();
+            Status = $"Resolving and planning {TargetQuery.Trim()}…";
+            var setup = equipment.Capture();
+            SetupSummary = setup.Summary;
+            TargetSchedulerStatus = targetScheduler.Status;
+            var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
+            var provider = LlmProviderFactory.Create(settingsStore.Load());
+            CurrentPlan = await planner.BuildPlanAsync(TargetQuery.Trim(), UserPreferences, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
+            ResetFramingAssociation();
+            RebuildTemplateChoices(setup);
+            Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}. Open Framing to choose the composition.";
+            if (AutonomyMode is AutonomyModeEnum.Create or AutonomyModeEnum.Autopilot)
+                await CreateCurrentPlanCoreAsync();
+        } finally {
+            IsPlanning = false;
+        }
     }
 
     private async Task DiscoverAsync() {
@@ -408,21 +415,26 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
 
     private async Task PlanSelectedCoreAsync() {
         if (SelectedCandidate == null) return;
-        TargetQuery = SelectedCandidate.Name;
-        framingIntegration.Reset();
-        ClearPlan();
-        Status = $"Building full {IntegrationAmbition} plan for {SelectedCandidate.Name}…";
-        var setup = equipment.Capture();
-        var provider = LlmProviderFactory.Create(settingsStore.Load());
-        var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
-        var discoveryNote = $"Discovered as {SelectedCandidate.Category}. {SelectedCandidate.Reason}. " + UserPreferences;
-        CurrentPlan = await planner.BuildPlanAsync(SelectedCandidate.Name, discoveryNote, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(SelectedCandidate.TargetType))
-            CurrentPlan.TargetType = SelectedCandidate.TargetType;
-        ResetFramingAssociation();
-        RebuildTemplateChoices(setup);
-        Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}. Open Framing to choose the composition.";
-        if (AutonomyMode == AutonomyModeEnum.Create) await CreateCurrentPlanCoreAsync();
+        IsPlanning = true;
+        try {
+            TargetQuery = SelectedCandidate.Name;
+            framingIntegration.Reset();
+            ClearPlan();
+            Status = $"Building full {IntegrationAmbition} plan for {SelectedCandidate.Name}…";
+            var setup = equipment.Capture();
+            var provider = LlmProviderFactory.Create(settingsStore.Load());
+            var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
+            var discoveryNote = $"Discovered as {SelectedCandidate.Category}. {SelectedCandidate.Reason}. " + UserPreferences;
+            CurrentPlan = await planner.BuildPlanAsync(SelectedCandidate.Name, discoveryNote, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(SelectedCandidate.TargetType))
+                CurrentPlan.TargetType = SelectedCandidate.TargetType;
+            ResetFramingAssociation();
+            RebuildTemplateChoices(setup);
+            Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}. Open Framing to choose the composition.";
+            if (AutonomyMode == AutonomyModeEnum.Create) await CreateCurrentPlanCoreAsync();
+        } finally {
+            IsPlanning = false;
+        }
     }
 
     private async Task LoadCurrentPlanIntoFramingAsync() {
