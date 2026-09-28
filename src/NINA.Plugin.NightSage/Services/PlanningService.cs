@@ -57,11 +57,14 @@ When filters are listed, use only those exact filter names in the exposures arra
 If no filters are listed, use filter "OSC" for a color-camera strategy.
 Target Scheduler exposure templates, when supplied, are the user's technical source of truth for gain, offset, binning, readout, twilight, dithering, humidity and moon-avoidance settings.
 Existing template exposure duration is NOT proof that the duration is safe for this target. Never choose a long sub-exposure merely because an exact template exists.
-Before choosing sub-exposure durations, explicitly assess target surface brightness, compact bright structures, bright nuclei/cores, bright stars and likely saturation/dynamic-range risk for this exact setup.
-This saturation/HDR assessment applies in Quick, Balanced and Deep.
-If meaningful structure is likely to clip in a normal long exposure, use multiple exposure lengths in the same filter: longer exposures for faint structures/halo and shorter exposures for core/highlight protection.
-Keep HDR complexity proportional to ambition: Quick should use the minimum useful complementary series, Balanced may add a modest protective series, and Deep may use a more complete multi-exposure strategy when scientifically useful.
-For routine exposures that are unlikely to saturate, prefer an existing same-filter template and its default exposure duration.
+Choose the simplest exposure strategy that preserves scientifically useful detail. A single exposure duration per filter is the DEFAULT.
+Assess saturation/dynamic-range risk from the target's known morphology and surface brightness, the exact optical setup, and bright cores/nuclei/stars that are genuinely relevant to the intended image.
+Do NOT add HDR or multiple exposure lengths merely because saturation is theoretically possible, because the target is compact, or because the integration ambition is Deep.
+If one appropriately shorter exposure duration can preserve important bright detail while still serving the main science/image goal, prefer that single duration instead of HDR.
+Use multiple exposure lengths in the same filter ONLY when there is a strong target-specific reason that one duration cannot reasonably preserve both important bright structure and scientifically valuable faint structure/halo.
+When HDR is used, keep it minimal: add only the complementary series needed for the dynamic-range problem and explain its purpose briefly in strategySummary.
+The saturation decision applies in Quick, Balanced and Deep; ambition changes how much total integration/faint-structure depth is justified, not whether HDR is automatically enabled.
+For routine exposures with no strong target-specific saturation concern, prefer an existing same-filter template and its default exposure duration.
 Set preferredTemplate to the exact existing template name you want NightSage to use.
 When a shorter or otherwise different exposure has a real imaging purpose, set preferredTemplate to the same-filter existing template that should be cloned as the technical base.
 NightSage will preserve the selected base template's technical settings and change only exposure duration.
