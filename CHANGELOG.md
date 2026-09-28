@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0-beta.2 — 2026-09-28
+
+Planning intelligence and progress feedback.
+
+- Added a local **Searching…** indicator and indeterminate progress bar next to **Find targets** while discovery is running.
+- Strengthened acquisition planning for all integration ambitions: compact/high-surface-brightness targets now explicitly trigger saturation/dynamic-range assessment before choosing sub-exposure lengths.
+- Existing Target Scheduler template duration is no longer treated as evidence that the exposure is safe for a particular target.
+- The planner may propose multiple exposure lengths in the same filter for HDR/core protection versus faint structures, with complexity scaled to Quick/Balanced/Deep.
+- For emission-line targets, all scientifically relevant configured narrowband filters are considered. In Deep, a potentially useful SHO channel should not be silently omitted; omissions must be justified in the strategy summary.
+- Direct target planning now receives the current UTC date/time plus deterministic seven-day visibility context (maximum altitude, dark/usable hours, best UTC sample and Moon separation), using the active N.I.N.A. profile site.
+- Discovery continues to use the active profile latitude/longitude/elevation and a rolling horizon starting at the current UTC time.
+
 ## 0.2.0-beta.1 — 2026-09-28
 
 First public-beta candidate.

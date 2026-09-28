@@ -40,6 +40,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     private readonly AsyncRelayCommand openNativeFramingCommand;
 
     private bool busy;
+    private bool discovering;
     private bool disposed;
     private string targetQuery = "";
     private string userPreferences = "";
@@ -138,6 +139,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     public string TargetSchedulerStatus { get => targetSchedulerStatus; private set { targetSchedulerStatus = value; RaisePropertyChanged(); } }
     public string Status { get => status; private set { status = value; RaisePropertyChanged(); } }
     public bool IsBusy { get => busy; private set { busy = value; RaisePropertyChanged(); RaiseCommands(); } }
+    public bool IsDiscovering { get => discovering; private set { discovering = value; RaisePropertyChanged(); } }
 
     public AutonomyModeEnum AutonomyMode {
         get => autonomyMode;
@@ -364,8 +366,10 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     }
 
     private async Task DiscoverAsync() {
-        framingIntegration.Reset();
-        ClearPlanAndDiscovery();
+        IsDiscovering = true;
+        try {
+            framingIntegration.Reset();
+            ClearPlanAndDiscovery();
         var settings = settingsStore.Load();
         var categories = DiscoveryCategoryCatalog.SelectedKeys(settings);
         if (categories.Count == 0) throw new InvalidOperationException("Select at least one target type before running Find targets.");
@@ -394,6 +398,9 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         if (AutonomyMode == AutonomyModeEnum.Autopilot && SelectedCandidate != null) {
             await PlanSelectedCoreAsync();
             if (CurrentPlan != null) await CreateCurrentPlanCoreAsync();
+        }
+        } finally {
+            IsDiscovering = false;
         }
     }
 

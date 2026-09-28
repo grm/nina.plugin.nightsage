@@ -55,19 +55,30 @@ The target coordinates have already been resolved authoritatively; do not invent
 Choose an astrophotography strategy for the exact active equipment supplied.
 When filters are listed, use only those exact filter names in the exposures array.
 If no filters are listed, use filter "OSC" for a color-camera strategy.
-Target Scheduler exposure templates, when supplied, are the user's acquisition source of truth.
-For routine exposures, strongly prefer an existing same-filter template and its default exposure duration.
+Target Scheduler exposure templates, when supplied, are the user's technical source of truth for gain, offset, binning, readout, twilight, dithering, humidity and moon-avoidance settings.
+Existing template exposure duration is NOT proof that the duration is safe for this target. Never choose a long sub-exposure merely because an exact template exists.
+Before choosing sub-exposure durations, explicitly assess target surface brightness, compact bright structures, bright nuclei/cores, bright stars and likely saturation/dynamic-range risk for this exact setup.
+This saturation/HDR assessment applies in Quick, Balanced and Deep.
+If meaningful structure is likely to clip in a normal long exposure, use multiple exposure lengths in the same filter: longer exposures for faint structures/halo and shorter exposures for core/highlight protection.
+Keep HDR complexity proportional to ambition: Quick should use the minimum useful complementary series, Balanced may add a modest protective series, and Deep may use a more complete multi-exposure strategy when scientifically useful.
+For routine exposures that are unlikely to saturate, prefer an existing same-filter template and its default exposure duration.
 Set preferredTemplate to the exact existing template name you want NightSage to use.
-You may request a different exposure duration when it has a real imaging purpose, especially HDR/highlights/bright stars.
-For such a special exposure, set preferredTemplate to the same-filter existing template that should be cloned as the technical base.
-NightSage will preserve the selected base template's gain, offset, binning, readout, twilight, dithering, humidity and moon-avoidance settings and change only exposure duration.
+When a shorter or otherwise different exposure has a real imaging purpose, set preferredTemplate to the same-filter existing template that should be cloned as the technical base.
+NightSage will preserve the selected base template's technical settings and change only exposure duration.
 Only propose low-level camera/moon settings from scratch when no same-filter template exists.
+For emission-line nebulae, planetary nebulae, SNRs and WR shells, explicitly consider every configured narrowband channel that is scientifically relevant.
+When H, O and S are all configured, Deep should not silently omit a potentially useful SHO channel; if one is omitted because its expected signal/value is too low, state that reason briefly in strategySummary.
 The integration ambition is not a duration bucket. Never add unnecessary hours just to match a preset.
 When an approved N.I.N.A. framing is supplied, do not change its geometry. The exposure totals you return are PER PANEL.
 For a mosaic, the integration ambition applies to the TOTAL project time across all panels, not to each panel separately.
 """;
 
-        var prompt = BuildPlanPrompt(target, setup, templates, userPreferences, ambition, framing);
+        var nowUtc = DateTime.UtcNow;
+        var visibility = AstronomyMath.VisibilityNextDays(
+            target.RaHours, target.DecDeg,
+            setup.LatitudeDeg, setup.LongitudeDeg,
+            30, 7, nowUtc);
+        var prompt = BuildPlanPrompt(target, setup, templates, userPreferences, ambition, framing, nowUtc, visibility);
         var raw = await provider.CompleteJsonAsync(system, prompt, cancellationToken).ConfigureAwait(false);
         using var doc = JsonPayload.ParseObject(raw);
         var plan = ParsePlan(doc.RootElement, target, setup, ambition, framing);
@@ -83,7 +94,9 @@ For a mosaic, the integration ambition applies to the TOTAL project time across 
         IReadOnlyList<TargetSchedulerTemplateInfo> templates,
         string preferences,
         IntegrationAmbition ambition,
-        FramingSnapshot? framing) {
+        FramingSnapshot? framing,
+        DateTime nowUtc,
+        VisibilitySummary visibility) {
 
         var filters = setup.Filters.Count == 0 ? "(none configured)" : string.Join(", ", setup.Filters);
         var templateText = templates.Count == 0
@@ -106,11 +119,19 @@ For a mosaic, the integration ambition applies to the TOTAL project time across 
             });
 
         return $$"""
+Current UTC date/time: {{nowUtc:yyyy-MM-dd HH:mm:ss}}Z
+
 Target:
 - query: {{target.Query}}
 - canonical name: {{target.CanonicalName}}
 - catalog J2000 RA: {{target.RaHours.ToString("0.######", CultureInfo.InvariantCulture)}} hours
 - catalog J2000 Dec: {{target.DecDeg.ToString("0.######", CultureInfo.InvariantCulture)}} degrees
+
+Deterministic visibility reference for the next 7 days at this site (30° altitude floor):
+- maximum altitude: {{visibility.MaxAltitudeDeg:0.#}} deg
+- dark/usable hours: {{visibility.DarkHoursAboveMinimum:0.0}} h
+- best UTC sample: {{visibility.BestUtc:yyyy-MM-dd HH:mm}}Z
+- Moon separation at best sample: {{visibility.MoonSeparationAtBestDeg:0.#}} deg
 
 Integration ambition: {{ambition}}
 Ambition guidance: {{IntegrationAmbitionPolicy.PlanningGuidance(ambition)}}

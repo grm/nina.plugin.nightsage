@@ -51,8 +51,34 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" VerticalAlignment="Center" Opacity="0.75"
                                    Text="Recommendations for the next 7 days, ranked for this setup and ambition."/>
-                        <Button Grid.Column="1" Content="Find targets" Command="{Binding DiscoverCommand}" Padding="10,3"
-                                MinWidth="90" HorizontalAlignment="Right"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Margin="0,0,8,0" VerticalAlignment="Center" Text="Searching…">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDiscovering}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <ProgressBar Width="82" Height="6" Margin="0,0,8,0" VerticalAlignment="Center" IsIndeterminate="True">
+                                <ProgressBar.Style>
+                                    <Style TargetType="ProgressBar">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDiscovering}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ProgressBar.Style>
+                            </ProgressBar>
+                            <Button Content="Find targets" Command="{Binding DiscoverCommand}" Padding="10,3"
+                                    MinWidth="90" HorizontalAlignment="Right"/>
+                        </StackPanel>
                     </Grid>
 
                     <Expander Header="Target types &amp; result limit" IsExpanded="False" Margin="0,7,0,5">
