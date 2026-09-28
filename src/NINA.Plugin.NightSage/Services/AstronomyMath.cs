@@ -185,8 +185,6 @@ public static class AstronomyMath {
         return Math.Clamp(1.4 - ratio, 0, 0.6);
     }
 
-    public static double JulianDate(DateTime utc) => AstroUtil.GetJulianDate(utc.ToUniversalTime());
-
     private sealed class FixedDateTime : ICustomDateTime {
         public FixedDateTime(DateTime utc) {
             UtcNow = utc.ToUniversalTime();
