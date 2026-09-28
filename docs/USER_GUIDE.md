@@ -22,6 +22,12 @@ Open **Settings → AI provider**.
 
 Choose OpenAI, Anthropic, Google Gemini or an OpenAI-compatible endpoint. Set the model and API key, then use **Test provider**.
 
+The Settings page includes a provider-specific **Get an API key ↗** link. For compatible/local servers it links to the NightSage endpoint guide instead.
+
+See [AI provider setup](PROVIDERS.md) for cloud-provider key links and ready-to-use OpenAI-compatible examples for Ollama, LM Studio, OpenRouter, Groq and Mistral.
+
+Provider API usage may incur charges from the selected provider. NightSage does not provide or resell API access.
+
 For compatible/local servers, set the endpoint.
 
 ### Privacy note

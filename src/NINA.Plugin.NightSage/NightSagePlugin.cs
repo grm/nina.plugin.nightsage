@@ -12,6 +12,7 @@ using NINA.WPF.Base.Interfaces.Mediator;
 using NINA.WPF.Base.Interfaces.ViewModel;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 
@@ -32,6 +33,7 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
         settings = store.Load();
         Workspace = new NightSageDockable(profileService, cameraMediator, framingAssistantVM, applicationMediator);
         TestProviderCommand = new AsyncRelayCommand(TestProviderAsync);
+        OpenProviderHelpCommand = new AsyncRelayCommand(OpenProviderHelpAsync);
         Logger.Info("NightSage: plugin initialized");
     }
 
@@ -53,7 +55,9 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
                 };
                 RaisePropertyChanged(nameof(Model));
             }
-            Save(); RaisePropertyChanged();
+            Save();
+            RaisePropertyChanged();
+            RaisePropertyChanged(nameof(ProviderHelpText));
         }
     }
 
@@ -68,7 +72,14 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
     public bool IncludeExistingTargets { get => settings.IncludeExistingTargets; set { settings.IncludeExistingTargets = value; Save(); RaisePropertyChanged(); } }
     public double MinimumAltitudeDegrees { get => settings.MinimumAltitudeDegrees; set { settings.MinimumAltitudeDegrees = Math.Clamp(value, 15, 80); Save(); RaisePropertyChanged(); } }
     public string ProviderTestStatus { get => providerTestStatus; private set { providerTestStatus = value; RaisePropertyChanged(); } }
+    public string ProviderHelpText => Provider switch {
+        "OpenAI" => "Get an OpenAI API key ↗",
+        "Anthropic" => "Get an Anthropic API key ↗",
+        "Google Gemini" => "Get a Gemini API key ↗",
+        _ => "OpenAI-compatible setup guide ↗"
+    };
     public ICommand TestProviderCommand { get; }
+    public ICommand OpenProviderHelpCommand { get; }
 
     private async Task TestProviderAsync() {
         ProviderTestStatus = "Testing…";
@@ -84,6 +95,24 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
             Notification.ShowError("NightSage provider test failed: " + ex.Message);
             Logger.Error("NightSage provider test failed: " + ex.Message);
         }
+    }
+
+    private Task OpenProviderHelpAsync() {
+        var url = Provider switch {
+            "OpenAI" => "https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key",
+            "Anthropic" => "https://platform.claude.com/settings/keys",
+            "Google Gemini" => "https://ai.google.dev/gemini-api/docs/api-key",
+            _ => "https://github.com/grm/nina.plugin.nightsage/blob/main/docs/PROVIDERS.md#openai-compatible-endpoints"
+        };
+
+        try {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        } catch (Exception ex) {
+            Notification.ShowError("NightSage could not open the provider documentation: " + ex.Message);
+            Logger.Error("NightSage provider documentation launch failed: " + ex.Message);
+        }
+
+        return Task.CompletedTask;
     }
 
     private void Save() => store.Save(settings);

@@ -1,6 +1,6 @@
 # Public release checklist
 
-NightSage 0.2.0-beta.4 is the current public-beta candidate.
+NightSage 0.2.0-beta.5 is the current public-beta candidate.
 
 ## Already completed
 
@@ -17,6 +17,9 @@ NightSage 0.2.0-beta.4 is the current public-beta candidate.
 - [x] Bug and feature issue templates
 - [x] N.I.N.A. ShortDescription / Changelog metadata
 - [x] N.I.N.A. screenshot metadata
+- [x] Provider-specific API-key onboarding and provider setup documentation
+- [x] Versioned release workflow that derives and creates the release tag from the built assembly
+- [x] N.I.N.A. beta manifest generation from the final packaged build
 - [x] Target Scheduler compatibility fails closed
 - [x] Target Scheduler 5.9.x and 5.10.x compatibility checked for the APIs NightSage uses
 - [x] No raw SQL writes
@@ -27,20 +30,31 @@ NightSage 0.2.0-beta.4 is the current public-beta candidate.
 - [x] Startup / embedded Framing Assistant regression fixed
 - [x] Single-frame and 2×2 mosaic workflow exercised in N.I.N.A.
 
-## Before changing the repository to Public
+## Repository publication
 
+- [x] Repository visibility changed to Public
+- [x] Commit author email history rewritten to the GitHub noreply address
+- [x] Basic repository scan found no committed API key, token, private key, private endpoint or old personal email
 - [ ] Install the beta ZIP on a clean/fresh N.I.N.A. plugin directory and run one smoke test
-- [ ] Confirm no API key, token, private endpoint or private user data is committed
 - [ ] Confirm screenshots contain nothing the maintainer considers private
-- [ ] Add a concise GitHub repository description/topics after visibility is public
+- [ ] Add a concise GitHub repository description/topics
 
-## After changing the repository to Public
+## Official N.I.N.A. beta submission
+
+- [x] Generate the archive and N.I.N.A. beta manifest from the same compiled output
+- [x] Include `Channel: Beta` through the official manifest-generation script
+- [ ] Publish the 0.2.0-beta.5 tagged prerelease and generated manifest
+- [ ] Validate the generated manifest against the current `nina.plugin.manifests` schema / `gather.js`
+- [ ] Submit the manifest to `isbeorn/nina.plugin.manifests`
+- [ ] Address maintainer review feedback
+- [ ] After acceptance, document the N.I.N.A. beta-repository installation path in the README
+
+## Public beta follow-up
 
 - [ ] Verify README images and CI badge anonymously
 - [ ] Verify the prerelease ZIP can be downloaded without authentication
 - [ ] Create a small public beta announcement and ask testers to use Preview mode first
 - [ ] Collect N.I.N.A. / Target Scheduler compatibility reports
-- [ ] Prepare the contribution/submission to the official N.I.N.A. plugin manifest repository when the beta is stable
 
 ## Suggested first public beta test
 

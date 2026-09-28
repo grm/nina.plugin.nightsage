@@ -18,28 +18,37 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+
       - name: Restore
         run: dotnet restore NINA.Plugin.NightSage.sln
+
       - name: Build
         run: dotnet build NINA.Plugin.NightSage.sln -c Release -p:Platform=x64 --no-restore
+
       - name: Test
         run: dotnet test tests/NINA.Plugin.NightSage.Tests/NINA.Plugin.NightSage.Tests.csproj -c Release -p:Platform=x64 --no-build
-      - name: Package
-        if: github.event_name == 'push'
+
+      - name: Package and create N.I.N.A. beta manifest
         shell: pwsh
         run: |
           $buildDir = "src/NINA.Plugin.NightSage/bin/x64/Release/net8.0-windows7.0"
           $stage = "release/NightSage"
+          $dll = Join-Path $stage "NINA.Plugin.NightSage.dll"
+
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           Copy-Item (Join-Path $buildDir "NINA.Plugin.NightSage.dll") $stage
+
           $pdb = Join-Path $buildDir "NINA.Plugin.NightSage.pdb"
           if (Test-Path $pdb) { Copy-Item $pdb $stage }
+
           $protectedData = Join-Path $buildDir "System.Security.Cryptography.ProtectedData.dll"
           if (Test-Path $protectedData) { Copy-Item $protectedData $stage }
+
           Copy-Item README.md $stage
           Copy-Item CHANGELOG.md $stage
           Copy-Item LICENSE.txt $stage
@@ -47,15 +56,60 @@ jobs:
           Copy-Item docs/USER_GUIDE.md "$stage/docs"
           Copy-Item docs/PRIVACY.md "$stage/docs"
           Copy-Item docs/TROUBLESHOOTING.md "$stage/docs"
-          Compress-Archive -Path "$stage/*" -DestinationPath "release/NightSage-0.2.0-beta.4.zip" -Force
-      - name: Upload build artifact
-        if: github.event_name == 'push'
+          Copy-Item docs/PROVIDERS.md "$stage/docs"
+
+          $productVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($dll).ProductVersion
+          $releaseVersion = ($productVersion -split '\+')[0]
+          if ([string]::IsNullOrWhiteSpace($releaseVersion)) {
+            throw "Could not read AssemblyInformationalVersion from the built plugin."
+          }
+
+          $tag = "v$releaseVersion"
+          $archiveBase = "NightSage-$releaseVersion"
+          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/$archiveBase.zip"
+
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/isbeorn/nina.plugin.manifests/main/tools/CreateManifest.ps1" -OutFile "release/CreateManifest.ps1"
+          & "release/CreateManifest.ps1" -file $dll -installerUrl $installerUrl -createArchive -includeAll -archiveName "release/$archiveBase" -beta
+          Move-Item "manifest.json" "release/$archiveBase.manifest.json" -Force
+
+          "NIGHTSAGE_RELEASE_VERSION=$releaseVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "NIGHTSAGE_RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "NIGHTSAGE_ARCHIVE_BASE=$archiveBase" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          Write-Host "Created release/$archiveBase.zip"
+          Write-Host "Created release/$archiveBase.manifest.json"
+
+      - name: Validate manifest with official N.I.N.A. gather.js
+        shell: pwsh
+        run: |
+          $manifestPath = "release/$env:NIGHTSAGE_ARCHIVE_BASE.manifest.json"
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          $manifestVersion = "$($manifest.Version.Major).$($manifest.Version.Minor).$($manifest.Version.Patch).$($manifest.Version.Build)"
+
+          git clone --depth 1 https://github.com/isbeorn/nina.plugin.manifests.git nina-manifests
+          $destination = "nina-manifests/manifests/n/NightSage/3.0.0"
+          New-Item -ItemType Directory -Path $destination -Force | Out-Null
+          Copy-Item $manifestPath (Join-Path $destination "betamanifest.$manifestVersion.json")
+
+          Push-Location nina-manifests
+          npm install
+          node gather.js
+          if ($LASTEXITCODE -ne 0) {
+            throw "Official N.I.N.A. manifest validation failed."
+          }
+          Pop-Location
+
+      - name: Upload release artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: NightSage-0.2.0-beta.4
-          path: release/NightSage-0.2.0-beta.4.zip
+          name: NightSage-${{ env.NIGHTSAGE_RELEASE_VERSION }}
+          path: |
+            release/NightSage-*.zip
+            release/NightSage-*.manifest.json
           retention-days: 30
-      - name: Publish prerelease
+
+      - name: Publish versioned prerelease
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
@@ -63,13 +117,23 @@ jobs:
         run: |
           $currentSha = git rev-parse HEAD
           $remoteSha = gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha
-          if ($currentSha -ne $remoteSha) { Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."; exit 0 }
-          $tag = "v0.2.0-beta.4"
+          if ($currentSha -ne $remoteSha) {
+            Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."
+            exit 0
+          }
+
+          $tag = $env:NIGHTSAGE_RELEASE_TAG
+          $releaseVersion = $env:NIGHTSAGE_RELEASE_VERSION
+          $archiveBase = $env:NIGHTSAGE_ARCHIVE_BASE
+          $zip = "release/$archiveBase.zip"
+          $manifest = "release/$archiveBase.manifest.json"
+
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Release $tag already exists; build/test succeeded, skipping duplicate publication."
             exit 0
           }
+
           git tag $tag
           git push origin $tag
-          gh release create $tag "release/NightSage-0.2.0-beta.4.zip" --title "NightSage 0.2.0-beta.4" --prerelease --notes-file CHANGELOG.md
+          gh release create $tag $zip $manifest --title "NightSage $releaseVersion" --prerelease --notes-file CHANGELOG.md
