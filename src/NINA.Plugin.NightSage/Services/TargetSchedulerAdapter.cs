@@ -71,6 +71,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
         CancellationToken cancellationToken) {
 
         if (!plan.IsValidated) throw new InvalidOperationException("NightSage will not write an unvalidated plan.");
+        PlanningContextGuard.EnsurePlanMatchesProfile(plan, profileId);
         if (plan.Exposures.Count == 0) throw new InvalidOperationException("The plan has no exposures.");
         var a = Assembly ?? throw new InvalidOperationException("Target Scheduler is not loaded yet.");
         if (!IsCompatible(a.GetName().Version)) throw new InvalidOperationException(Status);
@@ -86,6 +87,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
 
         await WriteGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
+            cancellationToken.ThrowIfCancellationRequested();
             BackupDatabase(a);
 
             object? context = null;
@@ -156,6 +158,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
                     targets.Add(target);
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
                 var savedProject = ReflectionUtil.Invoke(context, "AddNewProject", project);
                 if (savedProject == null) {
                     CleanupTemplates(context, createdTemplates);
@@ -278,7 +281,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
 
     private static void PopulateProject(object project, ImagingPlan plan, bool activate, bool isMosaic) {
         ReflectionUtil.Set(project, "Name", $"NightSage - {plan.TargetName}");
-        ReflectionUtil.Set(project, "Description", $"Created by NightSage 0.1.2-alpha. {plan.StrategySummary}".Trim());
+        ReflectionUtil.Set(project, "Description", $"Created by NightSage. {plan.StrategySummary}".Trim());
         ReflectionUtil.Set(project, "State", activate ? "Active" : "Draft");
         ReflectionUtil.Set(project, "Priority", plan.ProjectPriority);
         if (activate) ReflectionUtil.Set(project, "ActiveDate", (DateTime?)DateTime.Now);

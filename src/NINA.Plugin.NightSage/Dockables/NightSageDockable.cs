@@ -30,6 +30,10 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     private readonly DispatcherTimer targetSchedulerDetectionTimer;
     private readonly FramingAssistantIntegration framingIntegration;
 
+    private CancellationTokenSource? activeOperationCancellation;
+    private bool cancelOperationOnFramingChange;
+    private string operationCancellationReason = "";
+
     private readonly AsyncRelayCommand refreshCommand;
     private readonly AsyncRelayCommand analyzeCommand;
     private readonly AsyncRelayCommand discoverCommand;
@@ -78,7 +82,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         autonomyMode = initialSettings.AutonomyMode;
         integrationAmbition = initialSettings.IntegrationAmbition;
 
-        refreshCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(RefreshAsync), CanRun);
+        refreshCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(_ => RefreshAsync()), CanRun);
         analyzeCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(AnalyzeAsync), () => CanRun() && !string.IsNullOrWhiteSpace(TargetQuery));
         discoverCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(DiscoverAsync), CanRun);
         planSelectedCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(PlanSelectedAsync), () => CanRun() && SelectedCandidate != null);
@@ -87,9 +91,9 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
             () => ExecuteBusyAsync(LoadCurrentPlanIntoFramingAsync),
             () => CanRun() && CurrentPlan?.IsValidated == true && framingIntegration.EmbeddedAvailable);
         recalculateFromFramingCommand = new AsyncRelayCommand(
-            () => ExecuteBusyAsync(RecalculateFromFramingAsync),
+            () => ExecuteBusyAsync(RecalculateFromFramingAsync, cancelOnFramingChange: true),
             () => CanRun() && CurrentPlan?.IsValidated == true && framingAssociatedWithCurrentPlan && CurrentFraming?.Panels.Count > 0);
-        openNativeFramingCommand = new AsyncRelayCommand(OpenNativeFramingAsync, CanRun);
+        openNativeFramingCommand = new AsyncRelayCommand(() => ExecuteBusyAsync(_ => OpenNativeFramingAsync()), CanRun);
 
         RefreshCommand = refreshCommand;
         AnalyzeCommand = analyzeCommand;
@@ -287,18 +291,42 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
 
     private bool CanRun() => !IsBusy;
 
-    private async Task ExecuteBusyAsync(Func<Task> action) {
+    private async Task ExecuteBusyAsync(Func<CancellationToken, Task> action, bool cancelOnFramingChange = false) {
         if (IsBusy) return;
+
+        using var cts = new CancellationTokenSource();
+        activeOperationCancellation = cts;
+        cancelOperationOnFramingChange = cancelOnFramingChange;
+        operationCancellationReason = "";
         IsBusy = true;
+
         try {
-            await action();
+            await action(cts.Token);
+        } catch (OperationCanceledException ex) {
+            var reason = string.IsNullOrWhiteSpace(operationCancellationReason)
+                ? (string.IsNullOrWhiteSpace(ex.Message) ? "Operation cancelled." : ex.Message)
+                : operationCancellationReason;
+            Status = reason;
+            Logger.Info("NightSage: " + reason);
         } catch (Exception ex) {
             Status = "Error: " + ex.Message;
             Logger.Error("NightSage: " + ex);
             Notification.ShowError("NightSage: " + ex.Message);
         } finally {
+            if (ReferenceEquals(activeOperationCancellation, cts)) {
+                activeOperationCancellation = null;
+                cancelOperationOnFramingChange = false;
+                operationCancellationReason = "";
+            }
             IsBusy = false;
         }
+    }
+
+    private void CancelActiveOperation(string reason) {
+        var cts = activeOperationCancellation;
+        if (cts == null || cts.IsCancellationRequested) return;
+        operationCancellationReason = reason;
+        cts.Cancel();
     }
 
     private void ResetFramingAssociation() {
@@ -350,7 +378,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         return Task.CompletedTask;
     }
 
-    private async Task AnalyzeAsync() {
+    private async Task AnalyzeAsync(CancellationToken cancellationToken) {
         IsPlanning = true;
         try {
             framingIntegration.Reset();
@@ -361,18 +389,21 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
             TargetSchedulerStatus = targetScheduler.Status;
             var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
             var provider = LlmProviderFactory.Create(settingsStore.Load());
-            CurrentPlan = await planner.BuildPlanAsync(TargetQuery.Trim(), UserPreferences, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
+            var plan = await planner.BuildPlanAsync(TargetQuery.Trim(), UserPreferences, setup, templates, IntegrationAmbition, provider, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            PlanningContextGuard.EnsureProfileUnchanged(setup.ProfileId, equipment.Capture().ProfileId);
+            CurrentPlan = plan;
             ResetFramingAssociation();
             RebuildTemplateChoices(setup);
             Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}. Open Framing to choose the composition.";
             if (AutonomyMode is AutonomyModeEnum.Create or AutonomyModeEnum.Autopilot)
-                await CreateCurrentPlanCoreAsync();
+                await CreateCurrentPlanCoreAsync(cancellationToken);
         } finally {
             IsPlanning = false;
         }
     }
 
-    private async Task DiscoverAsync() {
+    private async Task DiscoverAsync(CancellationToken cancellationToken) {
         IsDiscovering = true;
         try {
             framingIntegration.Reset();
@@ -395,7 +426,10 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
             IntegrationAmbition,
             categories,
             Math.Clamp(settings.DiscoveryResultLimit, 1, 30),
-            CancellationToken.None);
+            cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        PlanningContextGuard.EnsureProfileUnchanged(setup.ProfileId, equipment.Capture().ProfileId);
 
         foreach (var c in result.Candidates) Candidates.Add(c);
         SelectedCandidate = Candidates.FirstOrDefault();
@@ -403,42 +437,48 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
             ? "No candidate survived deterministic visibility/resolution checks."
             : $"{Candidates.Count} candidate(s) ready for {IntegrationAmbition}.";
         if (AutonomyMode == AutonomyModeEnum.Autopilot && SelectedCandidate != null) {
-            await PlanSelectedCoreAsync();
-            if (CurrentPlan != null) await CreateCurrentPlanCoreAsync();
+            await PlanSelectedCoreAsync(cancellationToken);
+            if (CurrentPlan != null) await CreateCurrentPlanCoreAsync(cancellationToken);
         }
         } finally {
             IsDiscovering = false;
         }
     }
 
-    private Task PlanSelectedAsync() => PlanSelectedCoreAsync();
+    private Task PlanSelectedAsync(CancellationToken cancellationToken) => PlanSelectedCoreAsync(cancellationToken);
 
-    private async Task PlanSelectedCoreAsync() {
-        if (SelectedCandidate == null) return;
+    private async Task PlanSelectedCoreAsync(CancellationToken cancellationToken) {
+        var candidate = SelectedCandidate;
+        if (candidate == null) return;
         IsPlanning = true;
         try {
-            TargetQuery = SelectedCandidate.Name;
+            TargetQuery = candidate.Name;
             framingIntegration.Reset();
             ClearPlan();
-            Status = $"Building full {IntegrationAmbition} plan for {SelectedCandidate.Name}…";
+            Status = $"Building full {IntegrationAmbition} plan for {candidate.Name}…";
             var setup = equipment.Capture();
             var provider = LlmProviderFactory.Create(settingsStore.Load());
             var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
-            var discoveryNote = $"Discovered as {SelectedCandidate.Category}. {SelectedCandidate.Reason}. " + UserPreferences;
-            CurrentPlan = await planner.BuildPlanAsync(SelectedCandidate.Name, discoveryNote, setup, templates, IntegrationAmbition, provider, CancellationToken.None);
-            if (!string.IsNullOrWhiteSpace(SelectedCandidate.TargetType))
-                CurrentPlan.TargetType = SelectedCandidate.TargetType;
+            var discoveryNote = $"Discovered as {candidate.Category}. {candidate.Reason}. " + UserPreferences;
+            var plan = await planner.BuildPlanAsync(candidate.Name, discoveryNote, setup, templates, IntegrationAmbition, provider, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            PlanningContextGuard.EnsureProfileUnchanged(setup.ProfileId, equipment.Capture().ProfileId);
+            if (!string.IsNullOrWhiteSpace(candidate.TargetType))
+                plan.TargetType = candidate.TargetType;
+            CurrentPlan = plan;
             ResetFramingAssociation();
             RebuildTemplateChoices(setup);
             Status = $"Plan ready: {CurrentPlan.TargetName} · {CurrentPlan.TotalIntegrationDisplay}. Open Framing to choose the composition.";
-            if (AutonomyMode == AutonomyModeEnum.Create) await CreateCurrentPlanCoreAsync();
+            if (AutonomyMode == AutonomyModeEnum.Create) await CreateCurrentPlanCoreAsync(cancellationToken);
         } finally {
             IsPlanning = false;
         }
     }
 
-    private async Task LoadCurrentPlanIntoFramingAsync() {
+    private async Task LoadCurrentPlanIntoFramingAsync(CancellationToken cancellationToken) {
         if (CurrentPlan == null) return;
+        var setup = equipment.Capture();
+        PlanningContextGuard.EnsurePlanMatchesProfile(CurrentPlan, setup.ProfileId);
 
         // Switch first so the embedded native Framing Assistant is measured.
         // N.I.N.A.'s SetCoordinates waits for a non-zero BoundWidth before loading the survey image.
@@ -454,8 +494,10 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
             CurrentPlan.DecDeg,
             CurrentPlan.RotationDegrees,
             resetMosaic: true,
-            CancellationToken.None);
+            cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
+        PlanningContextGuard.EnsureProfileUnchanged(setup.ProfileId, equipment.Capture().ProfileId);
         if (!ok) throw new InvalidOperationException("N.I.N.A. could not load the target image in Framing Assistant.");
 
         var snapshot = framingIntegration.Capture();
@@ -466,23 +508,25 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         Status = $"Framing ready: {snapshot.Summary}";
     }
 
-    private async Task RecalculateFromFramingAsync() {
+    private async Task RecalculateFromFramingAsync(CancellationToken cancellationToken) {
         if (CurrentPlan == null) return;
 
         var snapshot = framingIntegration.Capture();
         if (snapshot.Panels.Count == 0)
             throw new InvalidOperationException("No framing panels are currently available.");
 
+        var expectedFramingFingerprint = snapshot.Fingerprint;
         var targetName = CurrentPlan.TargetName;
         Status = snapshot.IsMosaic
             ? $"Recalculating acquisition plan for {snapshot.PanelCount} framing panels…"
             : "Recalculating acquisition plan from the approved framing…";
 
         var setup = equipment.Capture();
+        PlanningContextGuard.EnsurePlanMatchesProfile(CurrentPlan, setup.ProfileId);
         var templates = targetScheduler.GetExposureTemplates(setup.ProfileId);
         var provider = LlmProviderFactory.Create(settingsStore.Load());
 
-        CurrentPlan = await planner.BuildPlanAsync(
+        var plan = await planner.BuildPlanAsync(
             targetName,
             UserPreferences,
             setup,
@@ -490,10 +534,16 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
             IntegrationAmbition,
             snapshot,
             provider,
-            CancellationToken.None);
+            cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
+        PlanningContextGuard.EnsureProfileUnchanged(setup.ProfileId, equipment.Capture().ProfileId);
+        var latestFraming = framingIntegration.Capture();
+        PlanningContextGuard.EnsureFramingUnchanged(expectedFramingFingerprint, latestFraming.Fingerprint);
+
+        CurrentPlan = plan;
         RebuildTemplateChoices(setup);
-        ApplyFramingBaseline(snapshot, updateCurrentPlan: true);
+        ApplyFramingBaseline(latestFraming, updateCurrentPlan: true);
         Status = $"Plan recalculated from framing · {CurrentPlan.TotalIntegrationDisplay} total.";
         SelectedWorkspaceTabIndex = 0;
     }
@@ -522,17 +572,20 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
         RaiseCommands();
     }
 
-    private Task CreateCurrentPlanAsync() => CreateCurrentPlanCoreAsync();
+    private Task CreateCurrentPlanAsync(CancellationToken cancellationToken) => CreateCurrentPlanCoreAsync(cancellationToken);
 
-    private async Task CreateCurrentPlanCoreAsync() {
+    private async Task CreateCurrentPlanCoreAsync(CancellationToken cancellationToken) {
         if (CurrentPlan == null) return;
+        var plan = CurrentPlan;
         if (framingAssociatedWithCurrentPlan && FramingPlanOutdated)
             throw new InvalidOperationException("Framing changed after this plan was calculated. Recalculate the acquisition plan before creating it in Target Scheduler.");
 
         var setup = equipment.Capture();
+        PlanningContextGuard.EnsurePlanMatchesProfile(plan, setup.ProfileId);
+        cancellationToken.ThrowIfCancellationRequested();
         TargetSchedulerStatus = targetScheduler.Status;
         if (!targetScheduler.CanWrite) throw new InvalidOperationException(targetScheduler.Status);
-        if (TemplateChoices.Count != CurrentPlan.Exposures.Count) RebuildTemplateChoices(setup);
+        if (TemplateChoices.Count != plan.Exposures.Count) RebuildTemplateChoices(setup);
 
         var pending = TemplateChoices.Where(x => x.RequiresCreation).ToList();
         if (pending.Count > 0) {
@@ -552,16 +605,21 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
             }
         }
 
-        Status = CurrentPlan.IsMosaic
-            ? $"Creating {CurrentPlan.PanelCount}-panel mosaic project in Target Scheduler…"
+        cancellationToken.ThrowIfCancellationRequested();
+        var latestSetup = equipment.Capture();
+        PlanningContextGuard.EnsureProfileUnchanged(setup.ProfileId, latestSetup.ProfileId);
+        PlanningContextGuard.EnsurePlanMatchesProfile(plan, latestSetup.ProfileId);
+
+        Status = plan.IsMosaic
+            ? $"Creating {plan.PanelCount}-panel mosaic project in Target Scheduler…"
             : "Creating project in Target Scheduler…";
 
         var result = await targetScheduler.CreateAsync(
-            setup.ProfileId,
-            CurrentPlan,
+            latestSetup.ProfileId,
+            plan,
             TemplateChoices.ToList(),
             settingsStore.Load().ActivateCreatedProjects,
-            CancellationToken.None);
+            cancellationToken);
 
         Status = result.Message;
         if (result.Success) {
@@ -588,6 +646,8 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
                 var snapshot = framingIntegration.Capture();
                 CurrentFraming = snapshot;
                 FramingPlanOutdated = snapshot.Fingerprint != framingBaselineFingerprint;
+                if (FramingPlanOutdated && cancelOperationOnFramingChange)
+                    CancelActiveOperation("Framing changed while the acquisition plan was being recalculated; the outdated request was cancelled.");
                 RaisePropertyChanged(nameof(FramingNotice));
                 RaiseCommands();
             } catch (Exception ex) {
@@ -613,6 +673,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     }
 
     private void ProfileService_ProfileChanged(object? sender, EventArgs e) {
+        CancelActiveOperation("Active N.I.N.A. profile changed; the in-flight NightSage operation was cancelled.");
         targetSchedulerDetectionTimer.Start();
         framingIntegration.Reset();
         ClearPlanAndDiscovery();
@@ -633,6 +694,7 @@ public sealed class NightSageDockable : DockableVM, IDisposable {
     public void Dispose() {
         if (disposed) return;
         disposed = true;
+        CancelActiveOperation("NightSage is shutting down.");
         targetSchedulerDetectionTimer.Stop();
         targetSchedulerDetectionTimer.Tick -= TargetSchedulerDetectionTimer_Tick;
         profileService.ProfileChanged -= ProfileService_ProfileChanged;

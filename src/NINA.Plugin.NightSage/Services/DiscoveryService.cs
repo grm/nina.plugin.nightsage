@@ -115,6 +115,7 @@ Return multiple alternatives when the result limit allows it. Cover the selected
                 candidate.Visibility = AstronomyMath.VisibilityNextDays(
                     candidate.RaHours, candidate.DecDeg,
                     setup.LatitudeDeg, setup.LongitudeDeg,
+                    setup.ElevationM,
                     minimumAltitude, days, discoveryStartUtc);
 
                 candidate.AlreadyInTargetScheduler = existingTargets.Any(x =>

@@ -56,6 +56,22 @@ NightSage uses the **currently loaded N.I.N.A. profile** as the setup identity. 
 
 No telescope/camera/filter combination is hardcoded.
 
+## Async context safety
+
+Planning and discovery requests are bound to the N.I.N.A. profile that was active when they started.
+
+Profile changes cancel in-flight work. After every provider wait, NightSage checks the captured profile ID again before accepting the result. Each validated `ImagingPlan` also carries its source profile ID, and the Target Scheduler adapter refuses to write a plan into any different profile.
+
+Framing recalculation uses the same pattern: it captures a framing fingerprint, cancels the request if framing changes, and checks the fingerprint again before accepting the recalculated plan.
+
+## Astrometry and visibility
+
+NightSage keeps its own product policy for visibility sampling (10-minute samples, twilight fallback thresholds, minimum-altitude filtering and candidate scoring), but it does not maintain independent Sun/Moon ephemerides.
+
+Target altitude is calculated through N.I.N.A. `Coordinates.Transform(...)`. Observer-specific Sun altitude and Moon position come from N.I.N.A. `AstroUtil` / NOVAS using the active profile latitude, longitude and elevation. This keeps NightSage planning aligned with the astrometry already used by N.I.N.A.
+
+The unit-test runner does not ship N.I.N.A.'s native NOVAS/JPL runtime files, so those native calls are verified by compiling against the declared minimum `NINA.Plugin 3.2.0.9001`; NightSage unit tests cover the surrounding deterministic scoring and safety logic without duplicating N.I.N.A.'s astrometry tests.
+
 ## Discovery
 
 Discovery has two layers:

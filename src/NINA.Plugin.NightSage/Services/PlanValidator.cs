@@ -7,8 +7,27 @@ public sealed class PlanValidator {
     public ImagingPlan Validate(ImagingPlan plan, SetupContext setup) {
         if (plan == null) throw new ArgumentNullException(nameof(plan));
         if (setup == null) throw new ArgumentNullException(nameof(setup));
+
+        RequireFinite(plan.RaHours, nameof(plan.RaHours));
+        RequireFinite(plan.DecDeg, nameof(plan.DecDeg));
+        RequireFinite(plan.AngularWidthArcmin, nameof(plan.AngularWidthArcmin));
+        RequireFinite(plan.AngularHeightArcmin, nameof(plan.AngularHeightArcmin));
+        RequireFinite(plan.RotationDegrees, nameof(plan.RotationDegrees));
+        RequireFinite(plan.MinimumAltitudeDegrees, nameof(plan.MinimumAltitudeDegrees));
+
         if (plan.RaHours < 0 || plan.RaHours >= 24) throw new InvalidOperationException("Target RA is outside 0-24h.");
         if (plan.DecDeg < -90 || plan.DecDeg > 90) throw new InvalidOperationException("Target declination is outside -90..+90°.");
+
+        if (plan.Framing != null) {
+            RequireFinite(plan.Framing.CenterRaHours, "Framing.CenterRaHours");
+            RequireFinite(plan.Framing.CenterDecDeg, "Framing.CenterDecDeg");
+            RequireFinite(plan.Framing.OverlapValue, "Framing.OverlapValue");
+            foreach (var panel in plan.Framing.Panels) {
+                RequireFinite(panel.RaHours, $"Framing panel {panel.Index} RA");
+                RequireFinite(panel.DecDeg, $"Framing panel {panel.Index} Dec");
+                RequireFinite(panel.RotationDegrees, $"Framing panel {panel.Index} rotation");
+            }
+        }
 
         plan.MinimumAltitudeDegrees = Clamp(plan.MinimumAltitudeDegrees, 15, 80);
         plan.MinimumSessionMinutes = (int)Clamp(plan.MinimumSessionMinutes, 10, 720);
@@ -32,6 +51,11 @@ public sealed class PlanValidator {
                     continue;
                 }
             }
+
+            RequireFinite(exposure.SubSeconds, $"{actual} sub-exposure seconds");
+            RequireFinite(exposure.TotalMinutes, $"{actual} total minutes");
+            RequireFinite(exposure.MoonSeparationDeg, $"{actual} Moon separation");
+            RequireFinite(exposure.MoonRelaxScale, $"{actual} Moon relax scale");
 
             exposure.Filter = actual;
             exposure.SubSeconds = Clamp(exposure.SubSeconds, 1, 3600);
@@ -64,6 +88,11 @@ public sealed class PlanValidator {
         }
         plan.IsValidated = true;
         return plan;
+    }
+
+    private static void RequireFinite(double value, string field) {
+        if (!double.IsFinite(value))
+            throw new InvalidOperationException($"Plan field '{field}' must be a finite number.");
     }
 
     private static int? ClampNullable(int? value, int? min, int? max) {

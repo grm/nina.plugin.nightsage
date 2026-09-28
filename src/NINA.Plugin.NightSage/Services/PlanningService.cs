@@ -80,6 +80,7 @@ For a mosaic, the integration ambition applies to the TOTAL project time across 
         var visibility = AstronomyMath.VisibilityNextDays(
             target.RaHours, target.DecDeg,
             setup.LatitudeDeg, setup.LongitudeDeg,
+            setup.ElevationM,
             30, 7, nowUtc);
         var prompt = BuildPlanPrompt(target, setup, templates, userPreferences, ambition, framing, nowUtc, visibility);
         var raw = await provider.CompleteJsonAsync(system, prompt, cancellationToken).ConfigureAwait(false);
@@ -209,6 +210,7 @@ Return exactly this JSON shape:
         FramingSnapshot? framing) {
 
         var plan = new ImagingPlan {
+            SourceProfileId = setup.ProfileId,
             TargetName = string.IsNullOrWhiteSpace(target.CanonicalName) ? target.Query : target.CanonicalName,
             TargetType = JsonPayload.String(root, "targetType", "other"),
             Ambition = ambition,

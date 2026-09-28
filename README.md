@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/grm/nina.plugin.nightsage/actions/workflows/ci.yml/badge.svg)](https://github.com/grm/nina.plugin.nightsage/actions/workflows/ci.yml)
 
-> **Status:** 0.2.0-beta.5 public beta candidate. Start in **Preview** mode and review every plan before acquisition.
+> **Status:** 0.2.0-beta.6 public beta candidate. Start in **Preview** mode and review every plan before acquisition.
 
 NightSage turns the **currently loaded N.I.N.A. profile** into a planning workspace. It can suggest what to shoot, build an acquisition strategy, let you compose the field in N.I.N.A.'s native Framing Assistant, handle mosaics, and create the resulting project in Target Scheduler.
 

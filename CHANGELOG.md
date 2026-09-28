@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0-beta.6 — 2026-09-28
+
+Safety hardening from N.I.N.A. manifest review.
+
+- Pending planning/discovery requests are now cancelled when the active N.I.N.A. profile changes.
+- Results are rejected after async waits if their source profile no longer matches the active profile.
+- Plans carry their source profile ID, and Target Scheduler creation refuses cross-profile writes as a final safety barrier.
+- Framing changes during plan recalculation cancel the in-flight request; stale recalculation results are rejected by framing fingerprint before they can clear the outdated-plan state.
+- LLM numeric parsing now rejects NaN and infinity, and plan validation independently enforces finite target, framing, exposure and Moon-related values before a plan can be marked validated.
+- Visibility calculations now use N.I.N.A. astrometry primitives for target altitude and observer-specific Sun/Moon positions, while keeping NightSage's seven-day sampling and scoring policy.
+- Added focused regression tests for stale profile/framing contexts and non-finite numeric values; CI compilation against N.I.N.A. 3.2.0.9001 verifies the astrometry API integration.
+
 ## 0.2.0-beta.5 — 2026-09-28
 
 Provider onboarding and official N.I.N.A. beta packaging.
