@@ -18,7 +18,7 @@ NightSage 0.2.0-beta.5 is the current public-beta candidate.
 - [x] N.I.N.A. ShortDescription / Changelog metadata
 - [x] N.I.N.A. screenshot metadata
 - [x] Provider-specific API-key onboarding and provider setup documentation
-- [x] Tag-driven release workflow
+- [x] Versioned release workflow that derives and creates the release tag from the built assembly
 - [x] N.I.N.A. beta manifest generation from the final packaged build
 - [x] Target Scheduler compatibility fails closed
 - [x] Target Scheduler 5.9.x and 5.10.x compatibility checked for the APIs NightSage uses
