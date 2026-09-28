@@ -71,6 +71,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
         CancellationToken cancellationToken) {
 
         if (!plan.IsValidated) throw new InvalidOperationException("NightSage will not write an unvalidated plan.");
+        PlanningContextGuard.EnsurePlanMatchesProfile(plan, profileId);
         if (plan.Exposures.Count == 0) throw new InvalidOperationException("The plan has no exposures.");
         var a = Assembly ?? throw new InvalidOperationException("Target Scheduler is not loaded yet.");
         if (!IsCompatible(a.GetName().Version)) throw new InvalidOperationException(Status);
@@ -86,6 +87,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
 
         await WriteGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
+            cancellationToken.ThrowIfCancellationRequested();
             BackupDatabase(a);
 
             object? context = null;
@@ -156,6 +158,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
                     targets.Add(target);
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
                 var savedProject = ReflectionUtil.Invoke(context, "AddNewProject", project);
                 if (savedProject == null) {
                     CleanupTemplates(context, createdTemplates);
