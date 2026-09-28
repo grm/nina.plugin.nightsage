@@ -281,7 +281,7 @@ public sealed class TargetSchedulerReflectionAdapter : ITargetSchedulerAdapter {
 
     private static void PopulateProject(object project, ImagingPlan plan, bool activate, bool isMosaic) {
         ReflectionUtil.Set(project, "Name", $"NightSage - {plan.TargetName}");
-        ReflectionUtil.Set(project, "Description", $"Created by NightSage 0.1.2-alpha. {plan.StrategySummary}".Trim());
+        ReflectionUtil.Set(project, "Description", $"Created by NightSage. {plan.StrategySummary}".Trim());
         ReflectionUtil.Set(project, "State", activate ? "Active" : "Draft");
         ReflectionUtil.Set(project, "Priority", plan.ProjectPriority);
         if (activate) ReflectionUtil.Set(project, "ActiveDate", (DateTime?)DateTime.Now);
