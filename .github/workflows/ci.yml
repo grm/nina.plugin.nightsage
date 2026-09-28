@@ -47,13 +47,13 @@ jobs:
           Copy-Item docs/USER_GUIDE.md "$stage/docs"
           Copy-Item docs/PRIVACY.md "$stage/docs"
           Copy-Item docs/TROUBLESHOOTING.md "$stage/docs"
-          Compress-Archive -Path "$stage/*" -DestinationPath "release/NightSage-0.2.0-beta.2.zip" -Force
+          Compress-Archive -Path "$stage/*" -DestinationPath "release/NightSage-0.2.0-beta.3.zip" -Force
       - name: Upload build artifact
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: NightSage-0.2.0-beta.2
-          path: release/NightSage-0.2.0-beta.2.zip
+          name: NightSage-0.2.0-beta.3
+          path: release/NightSage-0.2.0-beta.3.zip
           retention-days: 30
       - name: Publish prerelease
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -64,9 +64,9 @@ jobs:
           $currentSha = git rev-parse HEAD
           $remoteSha = gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha
           if ($currentSha -ne $remoteSha) { Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."; exit 0 }
-          $tag = "v0.2.0-beta.2"
+          $tag = "v0.2.0-beta.3"
           gh release delete $tag --yes --cleanup-tag 2>$null
           if ($LASTEXITCODE -ne 0) { Write-Host "No existing alpha release to replace." }
           git tag -f $tag
           git push origin $tag --force
-          gh release create $tag "release/NightSage-0.2.0-beta.2.zip" --title "NightSage 0.2.0-beta.2" --prerelease --notes-file CHANGELOG.md
+          gh release create $tag "release/NightSage-0.2.0-beta.3.zip" --title "NightSage 0.2.0-beta.3" --prerelease --notes-file CHANGELOG.md
