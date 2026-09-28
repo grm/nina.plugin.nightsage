@@ -65,8 +65,11 @@ jobs:
           $remoteSha = gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha
           if ($currentSha -ne $remoteSha) { Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."; exit 0 }
           $tag = "v0.2.0-beta.4"
-          gh release delete $tag --yes --cleanup-tag 2>$null
-          if ($LASTEXITCODE -ne 0) { Write-Host "No existing alpha release to replace." }
-          git tag -f $tag
-          git push origin $tag --force
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; build/test succeeded, skipping duplicate publication."
+            exit 0
+          }
+          git tag $tag
+          git push origin $tag
           gh release create $tag "release/NightSage-0.2.0-beta.4.zip" --title "NightSage 0.2.0-beta.4" --prerelease --notes-file CHANGELOG.md
