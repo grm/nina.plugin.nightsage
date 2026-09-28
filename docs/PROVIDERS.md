@@ -20,9 +20,9 @@ OpenAI recommends treating API keys as secrets and rotating them if they are exp
 
 ## Anthropic
 
-1. Open the Claude Platform documentation:
-   https://docs.anthropic.com/en/home
-2. Use **Get API Key** / Claude Console to create an API key.
+1. Open the Claude Platform API-key page:
+   https://platform.claude.com/settings/keys
+2. Sign in to Claude Console and create an API key.
 3. In NightSage, choose **Anthropic**.
 4. Paste the key into **API key**.
 5. Leave **Custom API endpoint** blank for the standard Anthropic API.
