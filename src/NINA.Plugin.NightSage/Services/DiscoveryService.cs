@@ -72,7 +72,8 @@ The integration ambition is a tolerance for project length, not a duration bucke
 Return multiple alternatives when the result limit allows it. Cover the selected categories as evenly as practical, then use remaining slots for the strongest additional targets.
 """;
 
-        var prompt = BuildPrompt(setup, existingTargets, days, minimumAltitude, ambition, selectedCategories, resultLimit);
+        var discoveryStartUtc = DateTime.UtcNow;
+        var prompt = BuildPrompt(setup, existingTargets, days, minimumAltitude, ambition, selectedCategories, resultLimit, discoveryStartUtc);
         var raw = await provider.CompleteJsonAsync(system, prompt, cancellationToken).ConfigureAwait(false);
         using var doc = JsonPayload.ParseObject(raw);
 
@@ -114,7 +115,7 @@ Return multiple alternatives when the result limit allows it. Cover the selected
                 candidate.Visibility = AstronomyMath.VisibilityNextDays(
                     candidate.RaHours, candidate.DecDeg,
                     setup.LatitudeDeg, setup.LongitudeDeg,
-                    minimumAltitude, days);
+                    minimumAltitude, days, discoveryStartUtc);
 
                 candidate.AlreadyInTargetScheduler = existingTargets.Any(x =>
                     NamesEquivalent(x.TargetName, candidate.Name) || NamesEquivalent(x.TargetName, name));
@@ -165,7 +166,8 @@ Return multiple alternatives when the result limit allows it. Cover the selected
         double minimumAltitude,
         IntegrationAmbition ambition,
         IReadOnlyList<DiscoveryCategoryDefinition> categories,
-        int resultLimit) {
+        int resultLimit,
+        DateTime discoveryStartUtc) {
 
         var existing = existingTargets.Count == 0
             ? "(none)"
@@ -176,8 +178,8 @@ Return multiple alternatives when the result limit allows it. Cover the selected
         var categoryList = string.Join("\n", categories.Select(x => $"- {x.Key}: {x.PromptName}"));
 
         return $$"""
-Current UTC date: {{DateTime.UtcNow:yyyy-MM-dd}}
-Discovery horizon: next {{days}} days
+Current UTC date/time: {{discoveryStartUtc:yyyy-MM-dd HH:mm:ss}}Z
+Discovery horizon: next {{days}} days, starting now
 Minimum useful target altitude: {{minimumAltitude:0}} deg
 Integration ambition: {{ambition}}
 Ambition guidance: {{IntegrationAmbitionPolicy.DiscoveryGuidance(ambition)}}
