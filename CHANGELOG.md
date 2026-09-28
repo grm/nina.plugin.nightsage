@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0-beta.3 — 2026-09-28
+
+Planning progress feedback polish.
+
+- Added a local **Building plan…** indicator and indeterminate progress bar beside **Build plan for selected target** while the LLM plan is being generated.
+- Added the same **Building plan…** feedback beside **Analyze target** for a consistent planning experience.
+- The indicator is cleared in a `finally` block so timeouts/errors cannot leave the UI stuck in a busy state.
+
 ## 0.2.0-beta.2 — 2026-09-28
 
 Planning intelligence and progress feedback.
