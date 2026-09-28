@@ -146,7 +146,7 @@ public static class AstronomyMath {
         DateTime utc,
         ObserverInfo observer) {
 
-        var moon = AstroUtil.GetMoonPosition(utc, observer);
+        var moon = AstroUtil.GetMoonPosition(utc, AstroUtil.GetJulianDate(utc), observer);
         var fixedClock = new FixedDateTime(utc);
         var targetJNow = new Coordinates(
             Angle.ByHours(targetRaHours),
