@@ -1,6 +1,6 @@
 # Public release checklist
 
-NightSage 0.2.0-beta.1 is the first public-beta candidate.
+NightSage 0.2.0-beta.4 is the current public-beta candidate.
 
 ## Already completed
 
