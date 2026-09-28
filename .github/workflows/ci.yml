@@ -34,7 +34,6 @@ jobs:
         run: dotnet test tests/NINA.Plugin.NightSage.Tests/NINA.Plugin.NightSage.Tests.csproj -c Release -p:Platform=x64 --no-build
 
       - name: Package and create N.I.N.A. beta manifest
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $buildDir = "src/NINA.Plugin.NightSage/bin/x64/Release/net8.0-windows7.0"
@@ -79,6 +78,26 @@ jobs:
 
           Write-Host "Created release/$archiveBase.zip"
           Write-Host "Created release/$archiveBase.manifest.json"
+
+      - name: Validate manifest with official N.I.N.A. gather.js
+        shell: pwsh
+        run: |
+          $manifestPath = "release/$env:NIGHTSAGE_ARCHIVE_BASE.manifest.json"
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          $manifestVersion = "$($manifest.Version.Major).$($manifest.Version.Minor).$($manifest.Version.Patch).$($manifest.Version.Build)"
+
+          git clone --depth 1 https://github.com/isbeorn/nina.plugin.manifests.git nina-manifests
+          $destination = "nina-manifests/manifests/n/NightSage/3.0.0"
+          New-Item -ItemType Directory -Path $destination -Force | Out-Null
+          Copy-Item $manifestPath (Join-Path $destination "betamanifest.$manifestVersion.json")
+
+          Push-Location nina-manifests
+          npm install
+          node gather.js
+          if ($LASTEXITCODE -ne 0) {
+            throw "Official N.I.N.A. manifest validation failed."
+          }
+          Pop-Location
 
       - name: Upload release artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
