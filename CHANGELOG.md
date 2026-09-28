@@ -9,7 +9,7 @@ Provider onboarding and official N.I.N.A. beta packaging.
 - Clarified that provider API usage may incur separate charges and that NightSage does not provide or resell API access.
 - Release packaging now includes the provider guide.
 - Release automation now builds the archive and N.I.N.A. beta manifest from the same compiled output so installer checksums remain aligned.
-- Switched prerelease publication to an explicit version-tag flow instead of publishing from every push to `main`.
+- Release automation now derives a versioned tag from the built assembly and publishes each prerelease only once after a successful `main` build.
 - Prepared NightSage 0.2.0.4 / 0.2.0-beta.5 for submission to the official N.I.N.A. beta plugin manifest repository.
 
 ## 0.2.0-beta.4 — 2026-09-28
