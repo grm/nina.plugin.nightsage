@@ -26,13 +26,35 @@ public static class JsonPayload {
 
     public static double Double(JsonElement e, string name, double fallback = 0) {
         if (!e.TryGetProperty(name, out var p)) return fallback;
-        if (p.ValueKind == JsonValueKind.Number && p.TryGetDouble(out var d)) return d;
-        return p.ValueKind == JsonValueKind.String && double.TryParse(p.GetString(), System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out d) ? d : fallback;
+
+        double value;
+        if (p.ValueKind == JsonValueKind.Number && p.TryGetDouble(out value)) {
+            return RequireFinite(name, value);
+        }
+
+        if (p.ValueKind == JsonValueKind.String && double.TryParse(
+                p.GetString(),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out value)) {
+            return RequireFinite(name, value);
+        }
+
+        return fallback;
     }
 
-    public static int Int(JsonElement e, string name, int fallback = 0) =>
-        (int)Math.Round(Double(e, name, fallback));
+    public static int Int(JsonElement e, string name, int fallback = 0) {
+        var value = Math.Round(Double(e, name, fallback));
+        if (value < int.MinValue || value > int.MaxValue)
+            throw new InvalidOperationException($"The LLM returned an out-of-range integer for '{name}'.");
+        return checked((int)value);
+    }
+
+    private static double RequireFinite(string name, double value) {
+        if (!double.IsFinite(value))
+            throw new InvalidOperationException($"The LLM returned a non-finite number for '{name}'.");
+        return value;
+    }
 
     public static bool Bool(JsonElement e, string name, bool fallback = false) {
         if (!e.TryGetProperty(name, out var p)) return fallback;
