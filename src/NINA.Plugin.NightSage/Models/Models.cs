@@ -164,6 +164,7 @@ public sealed class ExposureRecommendation {
 }
 
 public sealed class ImagingPlan {
+    public string SourceProfileId { get; set; } = "";
     public string TargetName { get; set; } = "";
     public string TargetType { get; set; } = "";
     public IntegrationAmbition Ambition { get; set; } = IntegrationAmbition.Balanced;
