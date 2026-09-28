@@ -209,6 +209,7 @@ Return exactly this JSON shape:
         FramingSnapshot? framing) {
 
         var plan = new ImagingPlan {
+            SourceProfileId = setup.ProfileId,
             TargetName = string.IsNullOrWhiteSpace(target.CanonicalName) ? target.Query : target.CanonicalName,
             TargetType = JsonPayload.String(root, "targetType", "other"),
             Ambition = ambition,
