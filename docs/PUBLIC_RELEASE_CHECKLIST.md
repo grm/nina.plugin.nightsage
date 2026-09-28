@@ -1,6 +1,6 @@
 # Public release checklist
 
-NightSage 0.2.0-beta.5 is the current public-beta candidate.
+NightSage 0.2.0-beta.6 is the current public-beta candidate.
 
 ## Already completed
 
@@ -20,6 +20,10 @@ NightSage 0.2.0-beta.5 is the current public-beta candidate.
 - [x] Provider-specific API-key onboarding and provider setup documentation
 - [x] Versioned release workflow that derives and creates the release tag from the built assembly
 - [x] N.I.N.A. beta manifest generation from the final packaged build
+- [x] Pending async results rejected/cancelled on profile or framing changes
+- [x] Plans bound to their source profile before Target Scheduler writes
+- [x] Non-finite LLM/plan numeric values rejected
+- [x] Visibility calculations use N.I.N.A. astrometry primitives
 - [x] Target Scheduler compatibility fails closed
 - [x] Target Scheduler 5.9.x and 5.10.x compatibility checked for the APIs NightSage uses
 - [x] No raw SQL writes
