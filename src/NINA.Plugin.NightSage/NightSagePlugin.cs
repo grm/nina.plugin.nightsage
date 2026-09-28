@@ -100,7 +100,7 @@ public sealed class NightSagePlugin : PluginBase, INotifyPropertyChanged {
     private Task OpenProviderHelpAsync() {
         var url = Provider switch {
             "OpenAI" => "https://help.openai.com/en/articles/4936850-where-do-i-find-my-secret-api-key",
-            "Anthropic" => "https://docs.anthropic.com/en/home",
+            "Anthropic" => "https://platform.claude.com/settings/keys",
             "Google Gemini" => "https://ai.google.dev/gemini-api/docs/api-key",
             _ => "https://github.com/grm/nina.plugin.nightsage/blob/main/docs/PROVIDERS.md#openai-compatible-endpoints"
         };
