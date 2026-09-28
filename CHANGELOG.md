@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0-beta.4 — 2026-09-28
+
+Target-specific HDR planning.
+
+- Changed HDR/multi-exposure planning so a single exposure duration per filter is the default.
+- HDR is now proposed only when one exposure duration cannot reasonably preserve both important bright structure and scientifically useful faint structure/halo.
+- A simply shorter safe exposure is preferred over adding HDR complexity when it can meet the imaging goal.
+- Deep no longer implicitly encourages HDR; Quick/Balanced/Deep affect total integration depth, not whether HDR is enabled.
+- Existing long Target Scheduler templates remain technical references but do not force an unsafe sub-exposure duration.
+
 ## 0.2.0-beta.3 — 2026-09-28
 
 Planning progress feedback polish.
