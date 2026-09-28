@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/grm/nina.plugin.nightsage/actions/workflows/ci.yml/badge.svg)](https://github.com/grm/nina.plugin.nightsage/actions/workflows/ci.yml)
 
-> **Status:** 0.2 public beta candidate. Start in **Preview** mode and review every plan before acquisition.
+> **Status:** 0.2.0-beta.5 public beta candidate. Start in **Preview** mode and review every plan before acquisition.
 
 NightSage turns the **currently loaded N.I.N.A. profile** into a planning workspace. It can suggest what to shoot, build an acquisition strategy, let you compose the field in N.I.N.A.'s native Framing Assistant, handle mosaics, and create the resulting project in Target Scheduler.
 
@@ -59,6 +59,8 @@ When framing changes after a plan has been calculated, NightSage marks the plan 
 - For automatic project creation: **Target Scheduler 5.9.x or 5.10.x**
 
 Target Scheduler is optional for discovery/planning/framing. It is only required for the final project creation step.
+
+Need help creating a provider key or configuring a local/compatible endpoint? See [AI provider setup](docs/PROVIDERS.md). NightSage Settings also includes a provider-specific help link next to the API-key field.
 
 ## Install the beta
 
@@ -131,7 +133,7 @@ Cloud-provider planning can include target names/coordinates, active equipment/p
 
 NightSage itself has no telemetry. A local OpenAI-compatible endpoint can keep LLM planning context on-device. Target-name resolution uses CDS Sesame, and the native N.I.N.A. Framing Assistant may contact the selected survey/image service.
 
-See [Privacy and data flow](docs/PRIVACY.md).
+See [AI provider setup](docs/PROVIDERS.md) and [Privacy and data flow](docs/PRIVACY.md).
 
 ## Safety / review model
 
@@ -142,6 +144,7 @@ Review the plan before acquisition—especially on remote or unattended systems.
 ## Documentation
 
 - [User guide](docs/USER_GUIDE.md)
+- [AI provider setup](docs/PROVIDERS.md)
 - [Privacy and data flow](docs/PRIVACY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Architecture](ARCHITECTURE.md)
