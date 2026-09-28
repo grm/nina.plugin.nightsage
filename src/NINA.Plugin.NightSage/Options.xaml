@@ -85,7 +85,14 @@
                                         <TextBox Grid.Row="2" Grid.Column="1" Margin="4" Text="{Binding Endpoint, UpdateSourceTrigger=PropertyChanged}"
                                                  ToolTip="Leave blank for the provider default. Use this for OpenAI-compatible or local endpoints."/>
                                         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,7" Text="API key"/>
-                                        <PasswordBox Grid.Row="3" Grid.Column="1" Margin="4" x:Name="ApiKeyBox" PasswordChanged="ApiKeyBox_OnPasswordChanged"/>
+                                        <StackPanel Grid.Row="3" Grid.Column="1" Margin="4">
+                                            <PasswordBox x:Name="ApiKeyBox" PasswordChanged="ApiKeyBox_OnPasswordChanged"/>
+                                            <Button Margin="0,5,0,0" Padding="8,3" HorizontalAlignment="Left"
+                                                    Content="{Binding ProviderHelpText}" Command="{Binding OpenProviderHelpCommand}"
+                                                    ToolTip="Open provider documentation for creating an API key or configuring an OpenAI-compatible endpoint."/>
+                                            <TextBlock Margin="0,5,0,0" Opacity="0.72" TextWrapping="Wrap"
+                                                       Text="Provider API usage may incur charges. NightSage does not provide or resell API access."/>
+                                        </StackPanel>
                                         <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,7" Text="Provider connection"/>
                                         <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="4">
                                             <Button Content="Test provider" Command="{Binding TestProviderCommand}" Padding="12,4"/>
