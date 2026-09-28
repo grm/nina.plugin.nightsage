@@ -41,7 +41,33 @@
                                  Text="{Binding UserPreferences, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="Examples: HDR core with 15s/60s exposures; short RGB stars; preferred palette; desired total integration."/>
                     </Grid>
-                    <Button Content="Analyze target" Command="{Binding AnalyzeCommand}" Padding="10,4" HorizontalAlignment="Left"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Content="Analyze target" Command="{Binding AnalyzeCommand}" Padding="10,4" Margin="0,0,8,0"/>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Building plan…">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPlanning}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ProgressBar Width="82" Height="6" VerticalAlignment="Center" IsIndeterminate="True">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPlanning}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                    </StackPanel>
                 </StackPanel>
             </Expander>
 
@@ -137,7 +163,33 @@
                             <DataTemplate><TextBlock Text="{Binding DisplayLine}" TextWrapping="Wrap"/></DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <Button Content="Build plan for selected target" Command="{Binding PlanSelectedCommand}" Padding="10,4" HorizontalAlignment="Left"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Content="Build plan for selected target" Command="{Binding PlanSelectedCommand}" Padding="10,4" Margin="0,0,8,0"/>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Building plan…">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPlanning}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ProgressBar Width="82" Height="6" VerticalAlignment="Center" IsIndeterminate="True">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPlanning}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                    </StackPanel>
                 </StackPanel>
             </Expander>
 
