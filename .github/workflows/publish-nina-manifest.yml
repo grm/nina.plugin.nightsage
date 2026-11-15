@@ -1,0 +1,160 @@
+name: Submit N.I.N.A. plugin manifest
+
+on:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: [build-test-release]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing GitHub release tag (for example v0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nina-manifest-${{ github.event.release.tag_name || inputs.tag || github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.NINA_MANIFEST_PAT }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      FORK: ${{ github.repository_owner }}/nina.plugin.manifests
+      UPSTREAM: isbeorn/nina.plugin.manifests
+    steps:
+      - name: Resolve stable tag from completed CI run
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          tag=$(gh release list --repo "$GH_REPO" --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
+          if [[ -z "$tag" ]]; then echo 'No stable release available'; exit 1; fi
+          echo "Using latest stable release $tag following successful CI commit $CI_SHA"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+
+      - name: Require fork token
+        if: env.SKIP_SUBMISSION != 'true'
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::Configure NINA_MANIFEST_PAT with access to your nina.plugin.manifests fork."
+            exit 1
+          fi
+
+      - name: Download published release artifacts
+        if: env.SKIP_SUBMISSION != 'true'
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p release
+          gh release download "$TAG" --dir release --pattern 'NightSage-*.zip' --pattern 'NightSage-*.manifest.json'
+          test "$(find release -maxdepth 1 -name '*.zip' | wc -l)" -eq 1
+          test "$(find release -maxdepth 1 -name '*.manifest.json' | wc -l)" -eq 1
+
+      - name: Determine channel and validate installer
+        if: env.SKIP_SUBMISSION != 'true'
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess
+          tag = os.environ['TAG']
+          release = json.loads(subprocess.check_output(
+              ['gh', 'api', f'repos/{os.environ["GH_REPO"]}/releases/tags/{tag}']))
+          if release['draft']:
+              raise SystemExit('Draft releases cannot be submitted')
+          beta = bool(release['prerelease'])
+          manifest_file = next(pathlib.Path('release').glob('*.manifest.json'))
+          archive = next(pathlib.Path('release').glob('*.zip'))
+          manifest = json.loads(manifest_file.read_text(encoding='utf-8-sig'))
+          version = manifest['Version']
+          version_str = '.'.join(str(version[k]) for k in ('Major', 'Minor', 'Patch', 'Build'))
+          if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){3}', version_str):
+              raise SystemExit('Invalid four-part assembly version')
+          expected_url = f'https://github.com/{os.environ["GH_REPO"]}/releases/download/{tag}/{archive.name}'
+          if manifest['Installer']['URL'] != expected_url:
+              raise SystemExit('Installer URL does not match the published release asset')
+          algorithm = manifest['Installer']['ChecksumType'].upper().replace('-', '')
+          if algorithm not in ('SHA256', 'SHA1', 'MD5'):
+              raise SystemExit(f'Unsupported checksum algorithm: {algorithm}')
+          actual = hashlib.new(algorithm.lower(), archive.read_bytes()).hexdigest()
+          if actual.lower() != manifest['Installer']['Checksum'].lower():
+              raise SystemExit('Installer checksum mismatch')
+          if beta:
+              manifest['Channel'] = 'Beta'
+          else:
+              manifest.pop('Channel', None)
+          pathlib.Path('submission.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'CHANNEL={"Beta" if beta else "Release"}\n')
+              f.write(f'MANIFEST_VERSION={version_str}\n')
+          PY
+
+      - name: Checkout manifest fork
+        if: env.SKIP_SUBMISSION != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.FORK }}
+          token: ${{ secrets.NINA_MANIFEST_PAT }}
+          path: manifests
+          fetch-depth: 0
+
+      - name: Prepare branch and manifest
+        if: env.SKIP_SUBMISSION != 'true'
+        working-directory: manifests
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git fetch https://github.com/isbeorn/nina.plugin.manifests.git main
+          branch="nightsage/${CHANNEL,,}-${MANIFEST_VERSION}"
+          git checkout -B "$branch" FETCH_HEAD
+          destination="manifests/n/NightSage/3.0.0/manifest.${MANIFEST_VERSION}.json"
+          mkdir -p "$(dirname "$destination")"
+          cp ../submission.json "$destination"
+          echo "SUBMISSION_BRANCH=$branch" >> "$GITHUB_ENV"
+          echo "SUBMISSION_PATH=$destination" >> "$GITHUB_ENV"
+
+      - name: Validate against official manifest schema
+        if: env.SKIP_SUBMISSION != 'true'
+        working-directory: manifests
+        run: |
+          npm install --no-audit --no-fund
+          node gather.js
+
+      - name: Push fork branch
+        if: env.SKIP_SUBMISSION != 'true'
+        working-directory: manifests
+        run: |
+          git add "$SUBMISSION_PATH"
+          if git diff --cached --quiet; then
+            echo "No changes to submit."
+            echo "HAS_CHANGES=false" >> "$GITHUB_ENV"
+          else
+            git commit -m "Add NightSage ${MANIFEST_VERSION} (${CHANNEL}) manifest"
+            git push --force-with-lease origin "$SUBMISSION_BRANCH"
+            echo "HAS_CHANGES=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Open upstream pull request
+        if: env.SKIP_SUBMISSION != 'true' && env.HAS_CHANGES == 'true'
+        run: |
+          existing=$(gh pr list --repo "$UPSTREAM" --state open \
+            --head "${{ github.repository_owner }}:$SUBMISSION_BRANCH" --json number --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            echo "Existing PR: https://github.com/$UPSTREAM/pull/$existing"
+            exit 0
+          fi
+          gh pr create --repo "$UPSTREAM" --base main \
+            --head "${{ github.repository_owner }}:$SUBMISSION_BRANCH" \
+            --title "NightSage ${MANIFEST_VERSION} (${CHANNEL})" \
+            --body "Automated manifest submission for [NightSage $TAG](https://github.com/${{ github.repository }}/releases/tag/$TAG). The installer archive checksum was verified and the manifest passed the upstream gather validation. Channel: $CHANNEL."
