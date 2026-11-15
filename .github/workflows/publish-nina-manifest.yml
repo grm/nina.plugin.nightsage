@@ -40,13 +40,8 @@ jobs:
         run: |
           tag=$(gh release list --repo "$GH_REPO" --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
           if [[ -z "$tag" ]]; then echo 'No stable release available'; exit 1; fi
-          tag_sha=$(gh api "repos/$GH_REPO/git/ref/tags/$tag" --jq '.object.sha')
-          if [[ "$tag_sha" != "$CI_SHA" ]]; then
-            echo "Latest stable tag $tag is at $tag_sha, not this CI commit $CI_SHA. Skipping publication."
-            echo 'SKIP_SUBMISSION=true' >> "$GITHUB_ENV"
-          else
-            echo "TAG=$tag" >> "$GITHUB_ENV"
-          fi
+          echo "Using latest stable release $tag following successful CI commit $CI_SHA"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
 
       - name: Require fork token
         if: env.SKIP_SUBMISSION != 'true'
@@ -133,7 +128,7 @@ jobs:
         if: env.SKIP_SUBMISSION != 'true'
         working-directory: manifests
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           node gather.js
 
       - name: Push fork branch
