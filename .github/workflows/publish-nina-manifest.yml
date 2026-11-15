@@ -3,6 +3,10 @@ name: Submit N.I.N.A. plugin manifest
 on:
   release:
     types: [published]
+  workflow_run:
+    workflows: [build-test-release]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -14,11 +18,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: nina-manifest-${{ github.event.release.tag_name || inputs.tag }}
+  group: nina-manifest-${{ github.event.release.tag_name || inputs.tag || github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
 jobs:
   submit:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.NINA_MANIFEST_PAT }}
@@ -26,7 +31,25 @@ jobs:
       FORK: ${{ github.repository_owner }}/nina.plugin.manifests
       UPSTREAM: isbeorn/nina.plugin.manifests
     steps:
+      - name: Resolve stable tag from completed CI run
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          tag=$(gh release list --repo "$GH_REPO" --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
+          if [[ -z "$tag" ]]; then echo 'No stable release available'; exit 1; fi
+          tag_sha=$(gh api "repos/$GH_REPO/git/ref/tags/$tag" --jq '.object.sha')
+          if [[ "$tag_sha" != "$CI_SHA" ]]; then
+            echo "Latest stable tag $tag is at $tag_sha, not this CI commit $CI_SHA. Skipping publication."
+            echo 'SKIP_SUBMISSION=true' >> "$GITHUB_ENV"
+          else
+            echo "TAG=$tag" >> "$GITHUB_ENV"
+          fi
+
       - name: Require fork token
+        if: env.SKIP_SUBMISSION != 'true'
         run: |
           if [[ -z "$GH_TOKEN" ]]; then
             echo "::error::Configure NINA_MANIFEST_PAT with access to your nina.plugin.manifests fork."
@@ -34,6 +57,7 @@ jobs:
           fi
 
       - name: Download published release artifacts
+        if: env.SKIP_SUBMISSION != 'true'
         env:
           GH_REPO: ${{ github.repository }}
         run: |
@@ -43,6 +67,7 @@ jobs:
           test "$(find release -maxdepth 1 -name '*.manifest.json' | wc -l)" -eq 1
 
       - name: Determine channel and validate installer
+        if: env.SKIP_SUBMISSION != 'true'
         env:
           GH_REPO: ${{ github.repository }}
         run: |
@@ -81,6 +106,7 @@ jobs:
           PY
 
       - name: Checkout manifest fork
+        if: env.SKIP_SUBMISSION != 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.FORK }}
@@ -89,6 +115,7 @@ jobs:
           fetch-depth: 0
 
       - name: Prepare branch and manifest
+        if: env.SKIP_SUBMISSION != 'true'
         working-directory: manifests
         run: |
           git config user.name 'github-actions[bot]'
@@ -103,12 +130,14 @@ jobs:
           echo "SUBMISSION_PATH=$destination" >> "$GITHUB_ENV"
 
       - name: Validate against official manifest schema
+        if: env.SKIP_SUBMISSION != 'true'
         working-directory: manifests
         run: |
           npm ci
           node gather.js
 
       - name: Push fork branch
+        if: env.SKIP_SUBMISSION != 'true'
         working-directory: manifests
         run: |
           git add "$SUBMISSION_PATH"
@@ -122,7 +151,7 @@ jobs:
           fi
 
       - name: Open upstream pull request
-        if: env.HAS_CHANGES == 'true'
+        if: env.SKIP_SUBMISSION != 'true' && env.HAS_CHANGES == 'true'
         run: |
           existing=$(gh pr list --repo "$UPSTREAM" --state open \
             --head "${{ github.repository_owner }}:$SUBMISSION_BRANCH" --json number --jq '.[0].number // empty')
