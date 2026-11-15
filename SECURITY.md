@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest NightSage beta/release line.
+Security fixes are applied to the latest NightSage release line.
 
 ## Reporting a vulnerability
 

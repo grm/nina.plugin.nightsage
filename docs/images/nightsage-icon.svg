@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="NightSage">
+  <defs>
+    <linearGradient id="badge" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#243B55"/>
+      <stop offset="55%" stop-color="#141E30"/>
+      <stop offset="100%" stop-color="#0B1220"/>
+    </linearGradient>
+    <linearGradient id="star" x1="160" y1="120" x2="360" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F4F7FB"/>
+      <stop offset="100%" stop-color="#C9D4E3"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="236" fill="url(#badge)"/>
+  <circle cx="256" cy="256" r="236" fill="none" stroke="#3A516C" stroke-width="10"/>
+  <path d="M168 318 A118 118 0 0 1 318 168" fill="none" stroke="#5FA8A0" stroke-width="18" stroke-linecap="round" opacity="0.85"/>
+  <path d="M256 78 L286 198 L408 208 L314 286 L342 408 L256 340 L170 408 L198 286 L104 208 L226 198 Z" fill="url(#star)"/>
+  <circle cx="256" cy="256" r="28" fill="#141E30"/>
+  <circle cx="256" cy="256" r="14" fill="#7EC8C0"/>
+</svg>

@@ -1,6 +1,6 @@
 # NightSage user guide
 
-This guide describes the 0.2 public-beta workflow.
+This guide describes the 0.2 stable workflow.
 
 ## 1. Open NightSage
 
@@ -48,7 +48,7 @@ NightSage always plans for the **currently active N.I.N.A. profile**.
 - **Create**: analysis may proceed to creation.
 - **Autopilot**: discovery may choose, plan and create automatically.
 
-Use Preview while learning or beta-testing.
+Use Preview while learning the workflow.
 
 ## 5. Choose integration ambition
 

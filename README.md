@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/grm/nina.plugin.nightsage/actions/workflows/ci.yml/badge.svg)](https://github.com/grm/nina.plugin.nightsage/actions/workflows/ci.yml)
 
-> **Status:** 0.2.0-beta.6 public beta candidate. Start in **Preview** mode and review every plan before acquisition.
+> **Status:** 0.2.0 stable. Start in **Preview** mode and review every plan before acquisition.
 
 NightSage turns the **currently loaded N.I.N.A. profile** into a planning workspace. It can suggest what to shoot, build an acquisition strategy, let you compose the field in N.I.N.A.'s native Framing Assistant, handle mosaics, and create the resulting project in Target Scheduler.
 
@@ -62,7 +62,7 @@ Target Scheduler is optional for discovery/planning/framing. It is only required
 
 Need help creating a provider key or configuring a local/compatible endpoint? See [AI provider setup](docs/PROVIDERS.md). NightSage Settings also includes a provider-specific help link next to the API-key field.
 
-## Install the beta
+## Install
 
 Until NightSage is accepted into the official N.I.N.A. plugin manifest repository, installation is manual:
 
@@ -73,7 +73,7 @@ Until NightSage is accepted into the official N.I.N.A. plugin manifest repositor
 5. Configure an AI provider in the **Settings** tab.
 6. Start with **Autonomy mode = Preview**.
 
-If you are upgrading an existing NightSage test build, replace the old plugin files while N.I.N.A. is closed.
+If you are upgrading an existing NightSage build, replace the old plugin files while N.I.N.A. is closed.
 
 ## Quick start
 
@@ -123,7 +123,7 @@ For a mosaic, NightSage reads the actual N.I.N.A. camera rectangles. After **Rec
 - **Create** — a completed analysis can proceed to project creation, with confirmation where required.
 - **Autopilot** — discovery can choose a recommendation, build the plan and proceed automatically.
 
-For first use and public-beta testing, **Preview** is strongly recommended.
+For first use, **Preview** is strongly recommended.
 
 ## Providers and privacy
 

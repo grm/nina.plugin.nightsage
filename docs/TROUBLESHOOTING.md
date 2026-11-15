@@ -11,7 +11,7 @@ NightSage checks periodically and should switch to `ready` automatically after T
 3. return to NightSage;
 4. click **Refresh** if necessary.
 
-Public beta write support covers Target Scheduler **5.9.x and 5.10.x**.
+Write support covers Target Scheduler **5.9.x and 5.10.x**.
 
 ## Target Scheduler version is unsupported
 

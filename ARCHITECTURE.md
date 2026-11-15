@@ -123,7 +123,7 @@ NightSage does not write raw SQL.
 
 It loads `NINA.Plugin.TargetScheduler` only when available and uses its own `SchedulerDatabaseInteraction.GetContext()` API through reflection.
 
-Supported write versions in the public beta:
+Supported write versions:
 
 - Target Scheduler 5.9.x
 - Target Scheduler 5.10.x

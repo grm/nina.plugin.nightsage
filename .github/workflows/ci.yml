@@ -33,7 +33,7 @@ jobs:
       - name: Test
         run: dotnet test tests/NINA.Plugin.NightSage.Tests/NINA.Plugin.NightSage.Tests.csproj -c Release -p:Platform=x64 --no-build
 
-      - name: Package and create N.I.N.A. beta manifest
+      - name: Package and create N.I.N.A. release manifest
         shell: pwsh
         run: |
           $buildDir = "src/NINA.Plugin.NightSage/bin/x64/Release/net8.0-windows7.0"
@@ -69,7 +69,7 @@ jobs:
           $installerUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/$archiveBase.zip"
 
           Invoke-WebRequest -Uri "https://raw.githubusercontent.com/isbeorn/nina.plugin.manifests/main/tools/CreateManifest.ps1" -OutFile "release/CreateManifest.ps1"
-          & "release/CreateManifest.ps1" -file $dll -installerUrl $installerUrl -createArchive -includeAll -archiveName "release/$archiveBase" -beta
+          & "release/CreateManifest.ps1" -file $dll -installerUrl $installerUrl -createArchive -includeAll -archiveName "release/$archiveBase"
           Move-Item "manifest.json" "release/$archiveBase.manifest.json" -Force
 
           "NIGHTSAGE_RELEASE_VERSION=$releaseVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -89,7 +89,7 @@ jobs:
           git clone --depth 1 https://github.com/isbeorn/nina.plugin.manifests.git nina-manifests
           $destination = "nina-manifests/manifests/n/NightSage/3.0.0"
           New-Item -ItemType Directory -Path $destination -Force | Out-Null
-          Copy-Item $manifestPath (Join-Path $destination "betamanifest.$manifestVersion.json")
+          Copy-Item $manifestPath (Join-Path $destination "manifest.$manifestVersion.json")
 
           Push-Location nina-manifests
           npm install
@@ -109,7 +109,7 @@ jobs:
             release/NightSage-*.manifest.json
           retention-days: 30
 
-      - name: Publish versioned prerelease
+      - name: Publish versioned release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
@@ -118,7 +118,7 @@ jobs:
           $currentSha = git rev-parse HEAD
           $remoteSha = gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha
           if ($currentSha -ne $remoteSha) {
-            Write-Host "A newer main commit exists; skipping prerelease publication for this stale run."
+            Write-Host "A newer main commit exists; skipping release publication for this stale run."
             exit 0
           }
 
@@ -136,4 +136,4 @@ jobs:
 
           git tag $tag
           git push origin $tag
-          gh release create $tag $zip $manifest --title "NightSage $releaseVersion" --prerelease --notes-file CHANGELOG.md
+          gh release create $tag $zip $manifest --title "NightSage $releaseVersion" --notes-file CHANGELOG.md

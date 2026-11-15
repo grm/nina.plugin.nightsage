@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-11-15
+
+First stable release.
+
+- Graduated from the public beta line to a Release-channel build (`0.2.0` / `0.2.0.6`).
+- Packaging now produces a N.I.N.A. Release manifest (no `Channel: Beta`) and publishes a normal GitHub release.
+- Added a plugin featured image (`FeaturedImageURL`) for the N.I.N.A. plugin manager.
+
 ## 0.2.0-beta.6 — 2026-09-28
 
 Safety hardening from N.I.N.A. manifest review.
